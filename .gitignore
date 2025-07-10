@@ -1,0 +1,70 @@
+# Build results
+bin/
+obj/
+[Bb]uild/
+[Bb]uild[Ll]og.*
+*.log
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.DS_Store
+
+# Visual Studio
+.vs/
+.vscode/
+*.code-workspace
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.assets.json
+
+# Backup & temporary files
+*.bak
+*.tmp
+*.temp
+*.cache
+*.dbmdl
+
+# Publish directory
+publish/
+
+# Rider IDE
+.idea/
+*.sln.iml
+
+# Ignore zip or test export folders
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+*.tgz
+
+# Cognex VisionPro 관련 임시 파일들 (패턴, 템플릿 등)
+*.vpp
+*.vsp
+*.vco
+*.vpp.bak
+*.vpp~
+
+# Local test images or captures
+/TestImages/
+CapturedImages/
+*.bmp
+*.jpg
+*.png
+
+# Ignore Debug/Release folders if manually created
+Debug/
+Release/
