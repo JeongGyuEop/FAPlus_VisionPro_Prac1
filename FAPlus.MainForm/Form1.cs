@@ -1,4 +1,5 @@
 ﻿using Cognex.VisionPro;
+using Cognex.VisionPro.Display;
 using Cognex.VisionPro.ImageFile;
 using Cognex.VisionPro.PMAlign;
 using System;
@@ -24,14 +25,10 @@ namespace FAPlus.MainForm
         private int currentImageIndex = 0; // 현재 보여지고 있는 이미지가 리스트 내에서 몇 번째인지 저장
         private bool check = false; // 이미지 넘길 때 자동으로 Check_pattern()을 수행할지 여부를 결정하는 플래그
 
-        public Form1()
-        {
-            InitializeComponent();
-        }
+        public Form1() {  InitializeComponent(); }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-
             imageList.ImageSize = new Size(100, 100); // 썸네일 크기 설정 (가로 100px, 세로 100px)
 
             imageListView.View = View.LargeIcon; // ListView를 썸네일 보기 모드 설정
@@ -77,11 +74,6 @@ namespace FAPlus.MainForm
                                           .Where(file => supportedExtensions.Contains(Path.GetExtension(file).ToLower()))
                                           .ToList();
 
-                    foreach (var path in imageFiles)
-                    {
-                        Console.WriteLine(path);
-                    }
-
                     currentImageIndex = 0; // 처음 이미지를 보여주기 위해 현재 인덱스를 0으로 초기화
 
                     // 이미지 리스트와 ListView 초기화
@@ -106,19 +98,7 @@ namespace FAPlus.MainForm
                         LoadImageByIndex(currentImageIndex, false);
                         imageListView.Items[currentImageIndex].Selected = true; // 선택 상태도 표시
 
-                        pmAlignTool.Pattern.TrainImage = null;
-                        check = false;
-
-                        toolRun.Enabled = false;
-
-                        trainDisplay.Fit(true);
-                        trainDisplay.StaticGraphics.Clear();
-                        trainDisplay.Image = null;
-
-                        resultDisplay.Record = null;
-                        resultDisplay.Fit(true);
-
-                        resultLabel.Text = "";
+                        InitDisplay();
                     }
                 }
             }
@@ -160,45 +140,13 @@ namespace FAPlus.MainForm
 
         private void RoiBtn_Click(object sender, EventArgs e)
         {
-            /*
-                이미지가 하나도 로드되지 않은 상태일 경우 사용자에게 알림
-                imageFiles는 이미지 파일 경로들이 저장된 리스트
-            */
-            if (imageFiles.Count == 0)
-            {
-                MessageBox.Show("이미지를 먼저 불러오세요.");
-                return;
-            }
+            InitDisplay();
+            CheckTrained();
+
+            Train.Enabled = true;
 
             roiRegion = new CogRectangle(); // CogRectangle은 크기와 위치 변경만 가능한 사각형 객체
             coordinateAxes = new CogCoordinateAxes(); // 중심 좌표를 시각적으로 표현하는 객체 (십자축 모양)
-
-            Train.Enabled = true;
-            toolRun.Enabled = false;
-
-            trainDisplay.Fit(true);
-            trainDisplay.StaticGraphics.Clear();
-            trainDisplay.Image = null;
-
-            resultDisplay.Record = null;
-            resultDisplay.Image = null;
-            resultDisplay.Fit(true);
-            resultLabel.Text = "";
-
-            if (pmAlignTool.Pattern.Trained)
-            {
-                pmAlignTool.Pattern.TrainImage = null;
-                check = false;
-
-
-                // 학습이 되어 있음
-                Console.WriteLine("기존의 패턴이 초기화되었습니다.");
-            }
-            else
-            {
-                // 학습이 되어 있지 않음
-                Console.WriteLine("학습된 패턴이 없습니다.");
-            }
 
             LoadImageByIndex(currentImageIndex, check);
 
@@ -207,7 +155,6 @@ namespace FAPlus.MainForm
 
 
             // ROI 영역 설정 ----------------------------------------------------------
-
             // SetCenterWidthHeight(X, Y, width, height) -> 중심 좌표(150, 150), 가로 세로 길이(300, 300)
             roiRegion.SetCenterWidthHeight(150, 150, 300, 300); 
 
@@ -277,28 +224,18 @@ namespace FAPlus.MainForm
                 {
                     Train.Enabled = false;
                     toolRun.Enabled = true;
-                    showImage.StaticGraphics.Clear();
-                    showImage.InteractiveGraphics.Clear();
+                    ClearDisplay(showImage, currentImage);
                 }
 
                 // ----------------------- 학습 결과 표시 ---------------------------------------
                 // 학습된 패턴을 이미지(ROI 영역 내 부분)를 TrainDisplay에 표시
-                trainDisplay.Image = pmAlignTool.Pattern.GetTrainedPatternImage();
-
-                // 디스플레이에 이미지가 꽉 차도록 맞춤
-                trainDisplay.Fit(true);
-
-                // 이전에 표시된 그래픽 (박스 등) 제거
-                trainDisplay.StaticGraphics.Clear(); 
+                ClearDisplay(trainDisplay, pmAlignTool.Pattern.GetTrainedPatternImage());
 
                 // 패턴의 외곽선 및 구조 정보를 Coarse 형태로 표시 (보통 Cyan으로 표현)
                 trainDisplay.StaticGraphics.AddList(pmAlignTool.Pattern.CreateGraphicsCoarse(CogColorConstants.Cyan), "coarsePattern");
 
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("패턴 학습 실패: " + ex.Message);
-            }
+            catch (Exception ex) {  MessageBox.Show("패턴 학습 실패: " + ex.Message);  }
 
         } // 이미지 Train을 위한 버튼
 
@@ -344,56 +281,30 @@ namespace FAPlus.MainForm
 
         private void SearchRegion_Click(object sender, EventArgs e)
         {
-            if (currentImage == null)
-            {
-                MessageBox.Show("먼저 이미지를 불러오세요.");
-                return;
-            }
+            InitDisplay();
+            CheckTrained();
 
             Train.Enabled = false;
-            toolRun.Enabled = false;
 
-            trainDisplay.Fit(true);
-            trainDisplay.StaticGraphics.Clear();
-            trainDisplay.Image = null;
+            int imageWidth = currentImage.Width;
+            int imageHeight = currentImage.Height;
 
-            resultDisplay.Record = null;
-            resultDisplay.Image = null;
-            resultDisplay.Fit(true);
+            double centerX = imageWidth / 2.0;
+            double centerY = imageHeight / 2.0;
 
-            resultLabel.Text = "";
-
-            if (pmAlignTool.Pattern.Trained)
-            {
-                pmAlignTool.Pattern.TrainImage = null;
-                check = false;
-
-                // 학습이 되어 있음
-                Console.WriteLine("기존의 패턴이 초기화되었습니다.");
-            }
-            else
-            {
-                toolRun.Enabled = false;
-            }
-            
             CogRectangle searchRegion = new CogRectangle();
-            searchRegion.SetCenterWidthHeight(150, 150, 300, 300);
+            searchRegion.SetCenterWidthHeight(centerX, centerY, imageWidth, imageHeight);
 
             searchRegion.GraphicDOFEnable = CogRectangleDOFConstants.All;
             searchRegion.Interactive = true;
             searchRegion.Color = CogColorConstants.Cyan;
 
             // 디스플레이에 표시
-            showImage.InteractiveGraphics.Clear();
-            showImage.StaticGraphics.Clear();
-            showImage.Image = currentImage;
+            ClearDisplay(showImage, currentImage);
             showImage.InteractiveGraphics.Add(searchRegion, "searchRegion", true);
 
             pmAlignTool.SearchRegion = searchRegion;
-
-
         } // 검색영역 버튼
-
 
 
         // ========================================================================================================
@@ -408,7 +319,7 @@ namespace FAPlus.MainForm
             */
             using (CogImageFile cogImageFile = new CogImageFile())
             {
-                // 선택된 이미지 경로를 열어서 읽기 모드로 설정
+                // 선택된 이미지 경로를 열어서 읽기 모드로 설정ClearDisplay(showImage, true);
                 cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
 
                 // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
@@ -416,18 +327,11 @@ namespace FAPlus.MainForm
                 currentImage = cogImageFile[0];
             }
 
-            if (check)
-            {
-                Check_pattern();
-            }
+            if (check) { Check_pattern(); }
             else
             {
                 showImage.Fit(true);
-                showImage.StaticGraphics.Clear();
-                showImage.InteractiveGraphics.Clear();
-
-                // 읽어온 이미지를 화면에 표시
-                showImage.Image = currentImage;
+                ClearDisplay(showImage, currentImage); 
             }
 
         } // 여러 장의 이미지를 로드하기 위한 함수
@@ -440,9 +344,23 @@ namespace FAPlus.MainForm
             // 검사 대상 이미지를 PMAlignTool 에 설정
             pmAlignTool.InputImage = currentImage;
 
-            pmAlignTool.LastRunRecordEnable = CogPMAlignLastRunRecordConstants.All;
-            pmAlignTool.CurrentRecordEnable = CogPMAlignCurrentRecordConstants.All;
+            pmAlignTool.LastRunRecordEnable = CogPMAlignLastRunRecordConstants.ResultsOrigin|
+                                              CogPMAlignLastRunRecordConstants.ResultsMatchRegion;
+            pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.All;
+            using (Form a = new Form())
+            {
+                a.Width = 800;
+                a.Height = 1200;
+                using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
+                {
+                    kiki.Subject = pmAlignTool;
+                    kiki.Dock = DockStyle.Fill;
+                    a.Controls.Add(kiki);
+                    a.ShowDialog();
+                }
+            }
 
+            pmAlignTool.CurrentRecordEnable = CogPMAlignCurrentRecordConstants.All;
 
             // ===============================================================================
             //pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures;
@@ -462,23 +380,14 @@ namespace FAPlus.MainForm
 
             // 가장 높은 점수를 가진 첫 번째 결과 사용
             var pmResult = pmAlignTool.Results[0];
-
-
+             
             // -------------------- 결과 시각화 --------------------------------
             var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"];
 
-            // ===============================================================================
-            //var temp = pmAlignTool.CreateLastRunRecord();
-            //pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures;
+            //var temp = pmAlignTool.CreateLastRunRecord().RecordKey["LastRun"];
 
-            //var temp2 = pmAlignTool.CreateLastRunRecord();
-
-            //resultDisplay.Image = currentImage;
-
-            // ===============================================================================
             resultDisplay.Record = temp;
-
-
+             
             // ------------------- 검사 결과 텍스트로 표시 ----------------------
             // 점수, 위치, 회전 각도 추출
             double score = pmResult.Score;
@@ -489,7 +398,54 @@ namespace FAPlus.MainForm
             // 결과를 라벨에 표시 (소수점 포멧 포함)
             resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
 
-        } // PMAlign 검사
+        } // PMAlign 검사 함수
+
+        private void InitDisplay()
+        {
+            /*
+                이미지가 하나도 로드되지 않은 상태일 경우 사용자에게 알림
+                imageFiles는 이미지 파일 경로들이 저장된 리스트
+            */
+            if (imageFiles.Count == 0)
+            {
+                MessageBox.Show("이미지를 먼저 불러오세요.");
+                return;
+            }
+
+            toolRun.Enabled = false; // 검사 버튼 비활성화
+
+            ClearDisplay(trainDisplay);
+            ClearDisplay(resultDisplay);
+
+            resultLabel.Text = ""; // 검사 결과 텍스트 초기화
+        } // ROI 영역 설정 || 검색 영역 설정에 대한 공통 부분 처리 함수
+
+        private void CheckTrained()
+        {
+            if (pmAlignTool.Pattern.Trained)
+            {
+                pmAlignTool.Pattern.TrainImage = null;
+                check = false;
+
+                // 학습이 되어 있음
+                Console.WriteLine("기존의 패턴이 초기화되었습니다.");
+            }
+            else
+            {
+                toolRun.Enabled = false; // 검사 버튼 비활성화
+
+                // 학습이 되어 있지 않음
+                Console.WriteLine("학습된 패턴이 없습니다.");
+            }
+        } // Train 확인 여부 호출 함수
+
+        private void ClearDisplay(CogDisplay display, ICogImage currentImage = null) // 디스플레이 초기화 함수
+        {
+            display.StaticGraphics.Clear();
+            display.InteractiveGraphics.Clear();
+            display.Image = currentImage != null ? currentImage : null;
+            display.Fit(true);
+        }
 
 
         // ========================================================================================================
@@ -524,108 +480,45 @@ namespace FAPlus.MainForm
 
         private void SetTime_Tick(object sender, EventArgs e)
         {
-            // 중복 방지 -> 추후에 변경
-            setTime.Stop();
-
-            // 다음 이미지 인덱스로 이동
-            currentImageIndex++;
-
-            // 끝까지 간 경우 다시 처음으로 (원하면 타이머 Stop도 가능)
-            if (currentImageIndex >= imageFiles.Count)
+            try
             {
-                currentImageIndex = 0;
+                // 중복 방지 -> 추후에 변경
+                setTime.Stop();
+                
+                // 다음 이미지 인덱스로 이동
+                currentImageIndex++;
+
+                // 이미지 끝까지 간 경우 다시 처음으로
+                if (currentImageIndex >= imageFiles.Count) { currentImageIndex = 0; }
+
+                // ListView 선택 갱신 (자동 스크롤 포함)
+                imageListView.SelectedItems.Clear();
+                imageListView.Items[currentImageIndex].Selected = true;
             }
+            catch (Exception ex) // 예외 처리
+            {
+                MessageBox.Show("오류 발생: " + ex.Message);
+            }
+            finally
+            {
+                setTime.Start(); // 타이머 재시작 (AtuoPlay 유지)
+            }
+        } // Auto Play 타이머가 일정 시간마다 실행될 때 호출되는 이벤트 핸들러
 
-            // ListView 선택도 갱신 (자동 스크롤 포함)
-            imageListView.SelectedItems.Clear();
-            imageListView.Items[currentImageIndex].Selected = true;
-
-            setTime.Start();
-        } //
-
-
-
-
-
-        // 결과 이미지(다음, 이전) 버튼을 구현한 것 (우선 필요 없을듯..)
-        /*
-        private void ResultNext_Click(object sender, EventArgs e)
+        private void button2_Click(object sender, EventArgs e)
         {
-            // 다음 이미지를 보기 위해 인덱스 1 증가
-            currentImageIndex++;
-
-            // Fit(true)는 이미지를 디스플레이에 꽉 차게 맞춤
-            resultDisplay.Fit(true);
-
-            // 만약 현재 인덱스가 이미지 리스트 개수보다 크거나 같아지면
-            // 처음 이미지로 다시 돌아가도록 인덱스를 0으로 초기화(순환 구조)
-            if (currentImageIndex >= imageFiles.Count)
+            using (Form a = new Form())
             {
-                currentImageIndex = 0;
+                a.Width = 800;
+                a.Height = 1200;
+                using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
+                {
+                    kiki.Subject = pmAlignTool;
+                    kiki.Dock = DockStyle.Fill;
+                    a.Controls.Add(kiki);
+                    a.ShowDialog();
+                }
             }
-
-            // 해당 인덱스의 이미지를 로드해서 showImage에 표시
-            ResultImageByIndex(currentImageIndex);
-
-            // check는 bool 변수로, 검사 실행 여부를 판단
-            // 검사 활성화 상태일 경우, 해당 이미지에 대해 패턴 검사 수행
-            if (check)
-            {
-                // PMAlign 검사 수행
-                Check_pattern();
-            }
-        } // 다음 결과 이미지를 보여주기 위한 버튼
-
-        private void ResultBefore_Click(object sender, EventArgs e)
-        {
-
-            //현재 이미지 인덱스를 하나 줄임 (이전 이미지로 이동)
-            currentImageIndex--;
-
-            // 이미지가 디스플레이에 꽉 차도록 확대/축소
-            showImage.Fit(true);
-
-            // 인덱스가 0보다 작아지면 리스트 마지막 인덱스로 순환
-            // 즉, 맨 처음에서 이전을 누르면 마지막 이미지로 이동
-            if (currentImageIndex < 0)
-            {
-                currentImageIndex = imageFiles.Count - 1;
-            }
-
-            // 현재 인덱스의 이미지 파일을 불러와 showImage에 표시
-            ResultImageByIndex(currentImageIndex);
-
-            // check는 bool 변수로, 검사 실행 여부를 판단
-            // 검사 활성화 상태일 경우, 해당 이미지에 대해 패턴 검사 수행
-            if (check)
-            {
-                // PMAlign 검사 수행
-                Check_pattern();
-            }
-
-        } // 이전 결과 이미지를 보여주기 위한 버튼
-
-                private void ResultImageByIndex(int imageIndex)
-        {
-            
-                // using 문을 사용하는 이유
-                // CogImageFile은 IDisposable을 구현하고 있는 객체로,
-                // 이미지 파일을 열고 닫는 리소스를 사용하므로
-                // using을 통해 자동으로 Dispose()가 호출되도록 한다.
-             
-            using (CogImageFile cogImageFile = new CogImageFile())
-            {
-                // 선택된 이미지 경로를 열어서 읽기 모드로 설정
-                cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
-
-                // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
-                // 대부분의 경우 1개의 이미지만 존재하므로 [0] 사용
-                currentImage = cogImageFile[0];
-            }
-
-
-        } // 결과 이미지 여러 장을 로드하기 위한 함수
-        */
-
+        }
     }
 }
