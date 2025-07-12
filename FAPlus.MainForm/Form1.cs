@@ -344,30 +344,45 @@ namespace FAPlus.MainForm
             // 검사 대상 이미지를 PMAlignTool 에 설정
             pmAlignTool.InputImage = currentImage;
 
-            pmAlignTool.LastRunRecordEnable = CogPMAlignLastRunRecordConstants.ResultsOrigin|
-                                              CogPMAlignLastRunRecordConstants.ResultsMatchRegion;
-            pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.All;
-            using (Form a = new Form())
-            {
-                a.Width = 800;
-                a.Height = 1200;
-                using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
-                {
-                    kiki.Subject = pmAlignTool;
-                    kiki.Dock = DockStyle.Fill;
-                    a.Controls.Add(kiki);
-                    a.ShowDialog();
-                }
-            }
-
             pmAlignTool.CurrentRecordEnable = CogPMAlignCurrentRecordConstants.All;
 
-            // ===============================================================================
-            //pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures;
-            // ===============================================================================
+            /*
+                CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures 사용하려면,
+                pmAlignTool.RunParams.SaveMatchInfo = true; 반드시 있어야 한다.
+             */
+            pmAlignTool.RunParams.SaveMatchInfo = true;
+            pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.InputImageByReference | CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures;
 
-            // PMAlignTool 실행 -> 내부적으로 학습된 패턴을 이미지에서 찾음
-            pmAlignTool.Run();
+            pmAlignTool.LastRunRecordEnable = CogPMAlignLastRunRecordConstants.ResultsOrigin|
+                                              CogPMAlignLastRunRecordConstants.ResultsMatchRegion;
+
+            // Tip!
+            /*
+                이 코드를 사용해서 내가 설정한 PMAlignTool의 내용을 확인할 수 있음.
+                Show()와 ShowDialog()의 차이를 알아야 한다.
+
+                    using (Form a = new Form())
+                    {
+                        a.Width = 800;
+                        a.Height = 1200;
+                        using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
+                        {
+                            kiki.Subject = pmAlignTool;
+                            kiki.Dock = DockStyle.Fill;
+                            a.Controls.Add(kiki);
+                            a.ShowDialog();
+                        }
+                    }
+             */
+
+            /*
+                PMAlignTool 실행 -> 내부적으로 학습된 패턴을 이미지에서 찾음.
+                RunStatus = {Error: LastRunRecordDiagEnable의 cogPMAlignLastRunRecordDiagResultsMatchFeatures 비트가 활성화된 경우 RunParams.SaveMatchInfo는 true여야 합니다.}
+                Run() 이후에 오류가 보인다는 것에 주의!
+            */
+            pmAlignTool.Run(); // PMAlignTool 실행 -> 내부적으로 학습된 패턴을 이미지에서 찾음.
+
+            if (pmAlignTool.Results == null) return;
 
             // 결과가 0개이면 매칭 실패 -> 이후 처리하지 않고 종료
             if (pmAlignTool.Results.Count == 0) {
@@ -382,10 +397,7 @@ namespace FAPlus.MainForm
             var pmResult = pmAlignTool.Results[0];
              
             // -------------------- 결과 시각화 --------------------------------
-            var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"];
-
-            //var temp = pmAlignTool.CreateLastRunRecord().RecordKey["LastRun"];
-
+            var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"]; // Run() 이후에 사용
             resultDisplay.Record = temp;
              
             // ------------------- 검사 결과 텍스트로 표시 ----------------------
@@ -505,20 +517,5 @@ namespace FAPlus.MainForm
             }
         } // Auto Play 타이머가 일정 시간마다 실행될 때 호출되는 이벤트 핸들러
 
-        private void button2_Click(object sender, EventArgs e)
-        {
-            using (Form a = new Form())
-            {
-                a.Width = 800;
-                a.Height = 1200;
-                using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
-                {
-                    kiki.Subject = pmAlignTool;
-                    kiki.Dock = DockStyle.Fill;
-                    a.Controls.Add(kiki);
-                    a.ShowDialog();
-                }
-            }
-        }
     }
 }

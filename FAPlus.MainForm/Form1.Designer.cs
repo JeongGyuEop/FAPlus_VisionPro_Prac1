@@ -51,7 +51,6 @@
             this.setTime = new System.Windows.Forms.Timer(this.components);
             this.button1 = new System.Windows.Forms.Button();
             this.SearchRegion = new System.Windows.Forms.Button();
-            this.button2 = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.showImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trainDisplay)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).BeginInit();
@@ -319,22 +318,11 @@
             this.SearchRegion.UseVisualStyleBackColor = true;
             this.SearchRegion.Click += new System.EventHandler(this.SearchRegion_Click);
             // 
-            // button2
-            // 
-            this.button2.Location = new System.Drawing.Point(994, 437);
-            this.button2.Name = "button2";
-            this.button2.Size = new System.Drawing.Size(75, 23);
-            this.button2.TabIndex = 29;
-            this.button2.Text = "button2";
-            this.button2.UseVisualStyleBackColor = true;
-            this.button2.Click += new System.EventHandler(this.button2_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1086, 638);
-            this.Controls.Add(this.button2);
             this.Controls.Add(this.SearchRegion);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label5);
@@ -390,7 +378,6 @@
         private System.Windows.Forms.Timer setTime;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button SearchRegion;
-        private System.Windows.Forms.Button button2;
     }
 }
 
