@@ -91,6 +91,7 @@ namespace FAPlus.LightControlller.Communication
             socket.SendTo(buffer, endPoint); // Ethernet
             //serialPort.Write(buffer, 0, buffer.Length); // RS-232
 
+            Receive_Call(); // 응답 수신
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -98,6 +99,7 @@ namespace FAPlus.LightControlller.Communication
             if (socket != null) socket.Close();
             if (serialPort != null && serialPort.IsOpen) serialPort.Close();
         }
+
         //// 1. CSR 설정 패킷 (채널 선택)
         //buffer = new byte[]
         //{
@@ -120,25 +122,6 @@ namespace FAPlus.LightControlller.Communication
         //    0x04        // End
         //};
 
-        //try
-        //{
-        //    socket.SendTo(buffer, endPoint);
-        //    Console.WriteLine("CSR 전송 완료");
-
-        //    Thread.Sleep(50); // 잠깐 대기 (필요시)
-
-        //    socket.SendTo(svrPacket, endPoint);
-        //    Console.WriteLine("SVR 전송 완료");
-
-        // 출력 ON (Output Enable 명령 필요 시)
-        //socket.SendTo(enablePacket, endPoint);
-
-
-        //}
-        //catch (Exception ex)
-        //{
-        //    Console.WriteLine("전송 오류: " + ex.Message);
-        //}
     }
 }
    
