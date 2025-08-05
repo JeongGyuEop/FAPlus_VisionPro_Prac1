@@ -9,6 +9,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
+using FAPlus.AquisitionCamera;
 
 namespace FAPlus.MainForm
 {
@@ -19,12 +20,15 @@ namespace FAPlus.MainForm
         private CogPMAlignTool pmAlignTool = new CogPMAlignTool(); // VisionPro에서 패턴 매칭(템플릿 매칭)을 수행하는 핵심 툴
         private ImageList imageList = new ImageList();
         private List<string> imageFiles = new List<string>(); // 이미지 폴더에서 불러온 파일 경로들의 리스트
+        AquisitionCameraForm aquisitionCamera;
 
         private ICogImage currentImage; // 현재 화면에 표시된 이미지이자 검사 대상 이미지
 
         private int currentImageIndex = 0; // 현재 보여지고 있는 이미지가 리스트 내에서 몇 번째인지 저장
         private bool check = false; // 이미지 넘길 때 자동으로 Check_pattern()을 수행할지 여부를 결정하는 플래그
+        private bool callCamera = true;
 
+        //==================================================================================================
         public Form1() {  InitializeComponent(); }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -386,7 +390,7 @@ namespace FAPlus.MainForm
 
             // 결과가 0개이면 매칭 실패 -> 이후 처리하지 않고 종료
             if (pmAlignTool.Results.Count == 0) {
-                resultDisplay.Record = null;
+                resultDisplay.Image = null;
                 resultDisplay.StaticGraphics.Clear();
                 resultDisplay.Image = currentImage;
                 MessageBox.Show("매칭 실패");
@@ -398,8 +402,13 @@ namespace FAPlus.MainForm
              
             // -------------------- 결과 시각화 --------------------------------
             var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"]; // Run() 이후에 사용
-            resultDisplay.Record = temp;
-             
+            
+            // temp는 ICogRecord 타입 → 여기서 이미지 객체(ICogImage)를 추출
+            ICogImage image = temp.Content as ICogImage;
+
+            // 추출한 이미지를 CogDisplay에 표시
+            resultDisplay.Image = image;
+
             // ------------------- 검사 결과 텍스트로 표시 ----------------------
             // 점수, 위치, 회전 각도 추출
             double score = pmResult.Score;
@@ -517,5 +526,48 @@ namespace FAPlus.MainForm
             }
         } // Auto Play 타이머가 일정 시간마다 실행될 때 호출되는 이벤트 핸들러
 
+
+        // ========================================================================================================
+        // 카메라 연결 버튼 클릭
+        private void connectCamera_Click(object sender, EventArgs e)
+        {
+            aquisitionCamera = new AquisitionCameraForm(callCamera);
+            aquisitionCamera.Show();
+
+            callCamera = false;
+        }
+
+        private void liveOnOffBtn_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (aquisitionCamera != null && aquisitionCamera.PublicAcqFifo != null)
+                {
+                    if (showImage.LiveDisplayRunning)
+                    {
+                        showImage.StopLiveDisplay();
+                        liveOnOffBtn.Text = "Start Live";
+                    }
+                    else
+                    {
+                        showImage.StartLiveDisplay(aquisitionCamera.PublicAcqFifo);
+                        liveOnOffBtn.Text = "Stop Live";
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("카메라가 연결되지 않았습니다.");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("라이브 실행 오류: " + ex.Message);
+            }
+        }
+
+        private void AcqOnce_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -42,7 +42,7 @@
             this.toolRun = new System.Windows.Forms.Button();
             this.resultLabel = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
-            this.resultDisplay = new Cognex.VisionPro.CogRecordDisplay();
+            this.resultDisplay = new Cognex.VisionPro.Display.CogDisplay();
             this.imageListView = new System.Windows.Forms.ListView();
             this.label4 = new System.Windows.Forms.Label();
             this.autoPlay = new System.Windows.Forms.Button();
@@ -51,6 +51,9 @@
             this.setTime = new System.Windows.Forms.Timer(this.components);
             this.button1 = new System.Windows.Forms.Button();
             this.SearchRegion = new System.Windows.Forms.Button();
+            this.connectCamera = new System.Windows.Forms.Button();
+            this.Acq_Once = new System.Windows.Forms.Button();
+            this.liveOnOffBtn = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.showImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trainDisplay)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).BeginInit();
@@ -94,9 +97,9 @@
             // roi_Btn
             // 
             this.roi_Btn.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.roi_Btn.Location = new System.Drawing.Point(199, 419);
+            this.roi_Btn.Location = new System.Drawing.Point(201, 513);
             this.roi_Btn.Name = "roi_Btn";
-            this.roi_Btn.Size = new System.Drawing.Size(175, 41);
+            this.roi_Btn.Size = new System.Drawing.Size(173, 41);
             this.roi_Btn.TabIndex = 2;
             this.roi_Btn.Text = "ROI 설정";
             this.roi_Btn.UseVisualStyleBackColor = true;
@@ -137,9 +140,9 @@
             // loadImage
             // 
             this.loadImage.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.loadImage.Location = new System.Drawing.Point(8, 374);
+            this.loadImage.Location = new System.Drawing.Point(7, 468);
             this.loadImage.Name = "loadImage";
-            this.loadImage.Size = new System.Drawing.Size(366, 39);
+            this.loadImage.Size = new System.Drawing.Size(367, 39);
             this.loadImage.TabIndex = 6;
             this.loadImage.Text = "이미지 로드";
             this.loadImage.UseVisualStyleBackColor = true;
@@ -150,7 +153,7 @@
             this.nextImage.BackColor = System.Drawing.Color.Snow;
             this.nextImage.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
             this.nextImage.ForeColor = System.Drawing.Color.Black;
-            this.nextImage.Location = new System.Drawing.Point(81, 585);
+            this.nextImage.Location = new System.Drawing.Point(83, 690);
             this.nextImage.Name = "nextImage";
             this.nextImage.Size = new System.Drawing.Size(74, 35);
             this.nextImage.TabIndex = 7;
@@ -163,7 +166,7 @@
             this.beforeImage.BackColor = System.Drawing.Color.Black;
             this.beforeImage.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
             this.beforeImage.ForeColor = System.Drawing.Color.White;
-            this.beforeImage.Location = new System.Drawing.Point(8, 585);
+            this.beforeImage.Location = new System.Drawing.Point(10, 690);
             this.beforeImage.Name = "beforeImage";
             this.beforeImage.Size = new System.Drawing.Size(74, 35);
             this.beforeImage.TabIndex = 8;
@@ -222,7 +225,7 @@
             // 
             this.imageListView.Alignment = System.Windows.Forms.ListViewAlignment.Left;
             this.imageListView.HideSelection = false;
-            this.imageListView.Location = new System.Drawing.Point(160, 476);
+            this.imageListView.Location = new System.Drawing.Point(162, 581);
             this.imageListView.MultiSelect = false;
             this.imageListView.Name = "imageListView";
             this.imageListView.Size = new System.Drawing.Size(909, 150);
@@ -243,7 +246,7 @@
             // 
             this.autoPlay.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.autoPlay.Font = new System.Drawing.Font("맑은 고딕", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.autoPlay.Location = new System.Drawing.Point(8, 506);
+            this.autoPlay.Location = new System.Drawing.Point(10, 611);
             this.autoPlay.Name = "autoPlay";
             this.autoPlay.Size = new System.Drawing.Size(150, 35);
             this.autoPlay.TabIndex = 24;
@@ -259,7 +262,7 @@
             0,
             0,
             65536});
-            this.playTimer.Location = new System.Drawing.Point(59, 480);
+            this.playTimer.Location = new System.Drawing.Point(61, 585);
             this.playTimer.Maximum = new decimal(new int[] {
             1,
             0,
@@ -285,7 +288,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.label5.Location = new System.Drawing.Point(13, 483);
+            this.label5.Location = new System.Drawing.Point(15, 588);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(40, 15);
             this.label5.TabIndex = 26;
@@ -299,7 +302,7 @@
             // 
             this.button1.BackColor = System.Drawing.Color.Tomato;
             this.button1.Font = new System.Drawing.Font("맑은 고딕", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.button1.Location = new System.Drawing.Point(8, 545);
+            this.button1.Location = new System.Drawing.Point(10, 650);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(150, 35);
             this.button1.TabIndex = 27;
@@ -310,19 +313,55 @@
             // SearchRegion
             // 
             this.SearchRegion.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.SearchRegion.Location = new System.Drawing.Point(8, 419);
+            this.SearchRegion.Location = new System.Drawing.Point(7, 513);
             this.SearchRegion.Name = "SearchRegion";
-            this.SearchRegion.Size = new System.Drawing.Size(174, 41);
+            this.SearchRegion.Size = new System.Drawing.Size(177, 41);
             this.SearchRegion.TabIndex = 28;
             this.SearchRegion.Text = "검색 영역";
             this.SearchRegion.UseVisualStyleBackColor = true;
             this.SearchRegion.Click += new System.EventHandler(this.SearchRegion_Click);
             // 
+            // connectCamera
+            // 
+            this.connectCamera.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.connectCamera.Location = new System.Drawing.Point(8, 374);
+            this.connectCamera.Name = "connectCamera";
+            this.connectCamera.Size = new System.Drawing.Size(366, 39);
+            this.connectCamera.TabIndex = 29;
+            this.connectCamera.Text = "카메라 연결";
+            this.connectCamera.UseVisualStyleBackColor = true;
+            this.connectCamera.Click += new System.EventHandler(this.connectCamera_Click);
+            // 
+            // Acq_Once
+            // 
+            this.Acq_Once.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.Acq_Once.Location = new System.Drawing.Point(7, 419);
+            this.Acq_Once.Name = "Acq_Once";
+            this.Acq_Once.Size = new System.Drawing.Size(177, 41);
+            this.Acq_Once.TabIndex = 30;
+            this.Acq_Once.Text = "1회 촬영";
+            this.Acq_Once.UseVisualStyleBackColor = true;
+            this.Acq_Once.Click += new System.EventHandler(this.AcqOnce_Click);
+            // 
+            // liveOnOffBtn
+            // 
+            this.liveOnOffBtn.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.liveOnOffBtn.Location = new System.Drawing.Point(199, 419);
+            this.liveOnOffBtn.Name = "liveOnOffBtn";
+            this.liveOnOffBtn.Size = new System.Drawing.Size(175, 41);
+            this.liveOnOffBtn.TabIndex = 31;
+            this.liveOnOffBtn.Text = "라이브 촬영";
+            this.liveOnOffBtn.UseVisualStyleBackColor = true;
+            this.liveOnOffBtn.Click += new System.EventHandler(this.liveOnOffBtn_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1086, 638);
+            this.ClientSize = new System.Drawing.Size(1086, 762);
+            this.Controls.Add(this.liveOnOffBtn);
+            this.Controls.Add(this.Acq_Once);
+            this.Controls.Add(this.connectCamera);
             this.Controls.Add(this.SearchRegion);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label5);
@@ -369,7 +408,7 @@
         private System.Windows.Forms.Button toolRun;
         private System.Windows.Forms.Label resultLabel;
         private System.Windows.Forms.Label label3;
-        private Cognex.VisionPro.CogRecordDisplay resultDisplay;
+        private Cognex.VisionPro.Display.CogDisplay resultDisplay;
         private System.Windows.Forms.ListView imageListView;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button autoPlay;
@@ -378,6 +417,9 @@
         private System.Windows.Forms.Timer setTime;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button SearchRegion;
+        private System.Windows.Forms.Button connectCamera;
+        private System.Windows.Forms.Button Acq_Once;
+        private System.Windows.Forms.Button liveOnOffBtn;
     }
 }
 
