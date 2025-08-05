@@ -1,6 +1,6 @@
 ﻿namespace FAPlus.LightControlller.Communication
 {
-    partial class Form1
+    partial class LightCommunicationForm
     {
         /// <summary>
         /// 필수 디자이너 변수입니다.
@@ -391,7 +391,7 @@
             this.End.UseVisualStyleBackColor = true;
             this.End.Click += new System.EventHandler(this.End_Click);
             // 
-            // Form1
+            // LightCommunicationForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -402,8 +402,8 @@
             this.Controls.Add(this.panel3);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel1);
-            this.Name = "Form1";
-            this.Text = "Form1";
+            this.Name = "LightCommunicationForm";
+            this.Text = "LightCommunicationForm";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.Ch1_LSize)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.Ch2_LSize)).EndInit();

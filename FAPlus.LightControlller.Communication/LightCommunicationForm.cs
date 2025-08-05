@@ -23,7 +23,7 @@ using System.Windows.Forms; // Winform UI 관련
 
 namespace FAPlus.LightControlller.Communication
 {
-    public partial class Form1 : Form
+    public partial class LightCommunicationForm : Form
     {
         Socket socket; // Ethernet UDP 통신용 소켓 
         IPEndPoint endPoint; // 목적지 IP와 port
@@ -34,7 +34,7 @@ namespace FAPlus.LightControlller.Communication
         CheckBox[] checkChannels; // 채널 체크박스 
         NumericUpDown[] numericControls; // 밝기 조절 컨트롤
 
-        public Form1()
+        public LightCommunicationForm()
         {
             InitializeComponent();
         }
