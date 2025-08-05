@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FAPlus.MainForm", "FAPlus.M
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FAPlus.LightControlller.Communication", "FAPlus.LightControlller.Communication\FAPlus.LightControlller.Communication.csproj", "{00E3E4DA-B015-478A-9363-BE28E2F9D214}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FAPlus.AquisitionCamera", "FAPlus.AquisitionCamera\FAPlus.AquisitionCamera.csproj", "{18B08477-E862-41C9-B66D-736221826563}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{00E3E4DA-B015-478A-9363-BE28E2F9D214}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{00E3E4DA-B015-478A-9363-BE28E2F9D214}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{00E3E4DA-B015-478A-9363-BE28E2F9D214}.Release|Any CPU.Build.0 = Release|Any CPU
+		{18B08477-E862-41C9-B66D-736221826563}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{18B08477-E862-41C9-B66D-736221826563}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{18B08477-E862-41C9-B66D-736221826563}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{18B08477-E862-41C9-B66D-736221826563}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

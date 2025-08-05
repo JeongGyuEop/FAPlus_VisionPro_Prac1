@@ -1,0 +1,231 @@
+﻿/*******************************************************************************
+ Cognex Corporation 저작권 (C) 2004-2010
+
+ Cognex의 라이선스 계약 및 조건에 따라,
+ 본 소스 코드를 Cognex 머신 비전 시스템과 함께 사용하는 경우에 한하여 자유롭게 수정 및 사용 가능합니다.
+ Cognex는 이 소프트웨어의 사용에 대해 어떠한 보증, 책임도 지지 않습니다.
+*******************************************************************************
+
+ 이 샘플 프로그램은 VisionPro의 특정 기능 또는 기술을 최대한 간단하게 설명하기 위해 설계되었습니다.
+ 상업용 애플리케이션을 위한 프레임워크로 사용되기 위한 것이 아니며,
+ 오류 처리, 이벤트 처리, 자원 정리 등은 포함되지 않았습니다.
+
+ 본 샘플은 주어진 비디오 포맷을 기반으로 새로운 ICogAcqFifo를 생성하는 방법을 보여줍니다.
+ CogAcqFifoTool은 자체적으로 이미지를 획득하지 않으며,
+ ICogAcqFifo를 통해 이미지를 획득합니다.
+
+ 사용자가 비디오 포맷을 변경하면 새로운 ICogAcqFifo를 생성해야 합니다.
+ 만약 프레임그래버를 찾을 수 없다면 오류를 표시하고 종료합니다.
+
+ Acquire 버튼을 누르면 이미지를 획득하고 CogDisplay에 표시합니다.
+
+ 이 예제는 C# 및 VisionPro에 대한 기초 지식이 있다고 가정합니다.
+
+ 다음은 CogAcqFifo 생성 단계입니다.
+ 1단계) CogFrameGrabbers 생성 (시스템에 Cognex 프레임그래버가 있어야 함)
+ 2단계) 첫 번째 프레임그래버 선택
+ 3단계) 선택한 비디오 포맷으로 ICogAcqFifo 생성
+ 4단계) Acquire 버튼 클릭 시 이미지 획득 및 표시
+
+ .NET의 가비지 컬렉터는 5번째 이미지 획득 시 자동 호출되어 메모리를 정리합니다.
+*******************************************************************************/
+
+using System;
+using System.Drawing;
+using System.Collections;
+using System.ComponentModel;
+using System.Windows.Forms;
+using System.Data;
+using Cognex.VisionPro;
+using Cognex.VisionPro.Exceptions;
+
+namespace CreateAcqFifo
+{
+    public class Form1 : System.Windows.Forms.Form
+    {
+        private Cognex.VisionPro.Display.CogDisplay cogDisplay1;
+        private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label BoardTypeLabel;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.ComboBox VidFormatComboBox;
+        private System.Windows.Forms.Button AcquireButton;
+        private System.Windows.Forms.TextBox textBox1;
+
+        private System.ComponentModel.Container components = null;
+
+        private ICogAcqFifo mAcqFifo = null;
+        private ICogFrameGrabber mFrameGrabber = null;
+        private int numAcqs = 0; // 획득 횟수 카운터
+
+        public Form1()
+        {
+            InitializeComponent(); // WinForm UI 구성
+            InitializeAcquisition(); // 이미지 획득 초기화
+        } // 폼 초기화
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (components != null) components.Dispose();
+
+                // 프레임그래버 연결 해제
+                CogFrameGrabbers frameGrabbers = new CogFrameGrabbers();
+                foreach (ICogFrameGrabber fg in frameGrabbers)
+                    fg.Disconnect(false);
+            }
+            base.Dispose(disposing);
+        }
+
+        // 카메라 초기화 단계
+        private void InitializeAcquisition()
+        {
+            try
+            {
+                // 1단계 - 프레임그래버 목록 가져오기
+                CogFrameGrabbers mFrameGrabbers = new CogFrameGrabbers();
+                if (mFrameGrabbers.Count < 1)
+                    throw new CogAcqNoFrameGrabberException("프레임그래버를 찾을 수 없습니다.");
+
+                // 2단계 - 첫 번째 프레임그래버 선택
+                mFrameGrabber = mFrameGrabbers[0];
+                BoardTypeLabel.Text = mFrameGrabber.Name;
+
+                // 사용 가능한 비디오 포맷 목록을 콤보박스에 추가
+                VidFormatComboBox.Items.Clear();
+                for (int i = 0; i < mFrameGrabber.AvailableVideoFormats.Count; i++)
+                    VidFormatComboBox.Items.Add(mFrameGrabber.AvailableVideoFormats[i]);
+
+                // 콤보박스 선택 이벤트 등록
+                VidFormatComboBox.SelectedIndexChanged += new EventHandler(VidFormatComboBox_SelectedIndexChanged);
+
+                // AcqFifo 생성 전까지는 버튼 비활성화
+                AcquireButton.Enabled = false;
+            }
+            catch (CogAcqException ex)
+            {
+                MessageBox.Show("카메라가 연결되지 않았습니다: " + ex.Message);
+            }
+        }
+
+        // 폼 UI 구성 함수
+        private void InitializeComponent()
+        {
+            System.Resources.ResourceManager resources = new System.Resources.ResourceManager(typeof(Form1));
+            this.cogDisplay1 = new Cognex.VisionPro.Display.CogDisplay();
+            this.label1 = new System.Windows.Forms.Label();
+            this.BoardTypeLabel = new System.Windows.Forms.Label();
+            this.label2 = new System.Windows.Forms.Label();
+            this.VidFormatComboBox = new System.Windows.Forms.ComboBox();
+            this.AcquireButton = new System.Windows.Forms.Button();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            ((System.ComponentModel.ISupportInitialize)(this.cogDisplay1)).BeginInit();
+            this.SuspendLayout();
+
+            // CogDisplay 설정
+            this.cogDisplay1.Location = new System.Drawing.Point(280, 24);
+            this.cogDisplay1.Name = "cogDisplay1";
+            this.cogDisplay1.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("cogDisplay1.OcxState")));
+            this.cogDisplay1.Size = new System.Drawing.Size(336, 296);
+            this.cogDisplay1.TabIndex = 0;
+
+            // 라벨 - Board Type
+            this.label1.Location = new System.Drawing.Point(16, 32);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(72, 24);
+            this.label1.Text = "보드 타입:";
+
+            // 실제 보드 이름
+            this.BoardTypeLabel.Location = new System.Drawing.Point(104, 32);
+            this.BoardTypeLabel.Size = new System.Drawing.Size(160, 24);
+            this.BoardTypeLabel.Text = "Unknown";
+
+            // 라벨 - 비디오 포맷
+            this.label2.Location = new System.Drawing.Point(16, 80);
+            this.label2.Size = new System.Drawing.Size(136, 16);
+            this.label2.Text = "비디오 포맷 선택:";
+
+            // 콤보박스 - 비디오 포맷 선택
+            this.VidFormatComboBox.Location = new System.Drawing.Point(16, 104);
+            this.VidFormatComboBox.Size = new System.Drawing.Size(224, 21);
+            this.VidFormatComboBox.Text = "Video Format";
+
+            // 이미지 획득 버튼
+            this.AcquireButton.Location = new System.Drawing.Point(64, 176);
+            this.AcquireButton.Size = new System.Drawing.Size(88, 40);
+            this.AcquireButton.Text = "이미지 획득";
+            this.AcquireButton.Click += new System.EventHandler(this.AcquireButton_Click);
+
+            // 텍스트박스 - 설명 출력
+            this.textBox1.Location = new System.Drawing.Point(0, 336);
+            this.textBox1.Multiline = true;
+            this.textBox1.ReadOnly = true;
+            this.textBox1.Size = new System.Drawing.Size(648, 40);
+            this.textBox1.Text = "비디오 포맷을 선택한 뒤 [이미지 획득] 버튼을 눌러 이미지를 획득하고 디스플레이에 출력합니다.";
+
+            // 폼 구성
+            this.ClientSize = new System.Drawing.Size(648, 382);
+            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.AcquireButton);
+            this.Controls.Add(this.VidFormatComboBox);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.BoardTypeLabel);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.cogDisplay1);
+            this.Text = "Acquisition FIFO 생성 샘플";
+            ((System.ComponentModel.ISupportInitialize)(this.cogDisplay1)).EndInit();
+            this.ResumeLayout(false);
+        }
+
+        [STAThread]
+        static void Main()
+        {
+            try
+            {
+                Application.Run(new Form1());
+            }
+            catch (CogException ce)
+            {
+                MessageBox.Show("오류 발생:\n" + ce.Message);
+                Application.Exit();
+            }
+        }
+
+        // 비디오 포맷 콤보박스 선택 변경 이벤트
+        private void VidFormatComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // 3단계: 선택된 비디오 포맷으로 AcqFifo 생성
+            String videoFormat = VidFormatComboBox.SelectedItem.ToString();
+
+            // AcqFifo 생성 (8비트 그레이 이미지 포맷)
+            mAcqFifo = mFrameGrabber.CreateAcqFifo(
+                videoFormat,
+                CogAcqFifoPixelFormatConstants.Format8Grey,
+                0,
+                true
+            );
+
+            // 버튼 활성화
+            AcquireButton.Enabled = true;
+        }
+
+        // 이미지 획득 버튼 클릭 시 이벤트
+        private void AcquireButton_Click(object sender, System.EventArgs e)
+        {
+            int trignum;
+            if (mAcqFifo != null)
+            {
+                // 4단계: 이미지 획득
+                cogDisplay1.Image = mAcqFifo.Acquire(out trignum);
+                numAcqs++;
+
+                // 5번째 이미지마다 가비지 컬렉터 실행 (메모리 정리)
+                if (numAcqs > 4)
+                {
+                    GC.Collect();
+                    numAcqs = 0;
+                }
+            }
+        }
+    }
+}

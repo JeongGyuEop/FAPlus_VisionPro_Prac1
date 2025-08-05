@@ -1,0 +1,175 @@
+﻿//*******************************************************************************
+// Copyright (C) 2004-2010 Cognex Corporation
+//
+// Subject to Cognex Corporation's terms and conditions and license agreement,
+// you are authorized to use and modify this source code in any way you find
+// useful, provided the Software and/or the modified Software is used solely in
+// conjunction with a Cognex Machine Vision System. Furthermore you acknowledge
+// and agree that Cognex has no warranty, obligations or liability for your use
+// of the Software.
+//*******************************************************************************
+//
+// 이 샘플 프로그램은 특정 VisionPro 기능이나 기술을 가능한 단순하게 보여주기 위한 목적입니다.
+// 상용 애플리케이션의 프레임워크로 사용하기 위해 작성된 것이 아닙니다. 특히 이 샘플 프로그램은
+// 적절한 오류 처리, 이벤트 처리, 클린업, 반복성, 기타 상용 수준의 메커니즘을 포함하지 않을 수 있습니다.
+//
+// 이 샘플은 CogDisplay를 사용하여 라이브 디스플레이를 시작하고 중지하는 방법을 보여줍니다.
+//
+// 이 프로그램은 사용자가 Visual Basic 및 VisionPro 프로그래밍에 대한 지식을 가지고 있다고 가정합니다.
+//
+// 다음 단계에 따라 라이브 디스플레이를 시작/중지할 수 있습니다:
+// 1단계) CogAcqFifoTool 생성
+// 2단계) 라이브 디스플레이 중지
+// 3단계) 라이브 디스플레이 시작
+
+using System;
+using System.Windows.Forms;
+using Cognex.VisionPro;
+using Cognex.VisionPro.Exceptions;
+
+namespace LiveDisplay
+{
+    public partial class Form1 : Form
+    {
+        private CogAcqFifoTool mTool;
+        private ICogAcqFifo mAcqFifo;
+        private ICogAcqBrightness mBrightness;
+        private ICogAcqContrast mContrast;
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            try
+            {
+                InitializeAcquisition();
+            }
+            catch (CogException ex)
+            {
+                MessageBox.Show(ex.Message);
+                Application.Exit();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                Application.Exit();
+            }
+        }
+
+        // 영상 획득 초기화
+        private void InitializeAcquisition()
+        {
+            this.Visible = true;
+
+            // 1단계 - 기본 영상 포맷을 사용하여 CogAcqFifoTool 생성 (예: Sony XC75 - 640x480)
+            mTool = new CogAcqFifoTool();
+
+            // 정상적으로 AcqFifo가 생성되었는지 확인
+            if (mTool.Operator == null)
+            {
+                throw new CogAcqNoFrameGrabberException("프레임그래버가 없거나 제대로 동작하지 않습니다.");
+            }
+
+            // 2단계 - CogAcqFifo, Brightness, Contrast 설정
+            mAcqFifo = mTool.Operator;
+
+            // 선택된 비디오 포맷 표시
+            lblVideoFormat.Text = mAcqFifo.VideoFormat;
+            // 보드 이름 표시
+            lblBoardType.Text = mAcqFifo.FrameGrabber.Name;
+            // 타임아웃 설정 (ms)
+            mAcqFifo.Timeout = 300;
+
+            // 밝기 설정 불가능할 경우 라벨로 알림 표시
+            mBrightness = mTool.Operator.OwnedBrightnessParams;
+            if (mBrightness != null)
+            {
+                brightnessUpDown.Value = (decimal)mBrightness.Brightness;
+            }
+            else
+            {
+                brightnessUpDown.Visible = false;
+                lblNoBrightness.Visible = true;
+            }
+
+            // 대비 설정 불가능할 경우 라벨로 알림 표시
+            mContrast = mTool.Operator.OwnedContrastParams;
+            if (mContrast != null)
+            {
+                contrastUpDown.Value = (decimal)mContrast.Contrast;
+            }
+            else
+            {
+                contrastUpDown.Visible = false;
+                lblNoContrast.Visible = true;
+            }
+        }
+
+        // 밝기 값이 변경될 때 호출되는 이벤트 핸들러
+        private void brightnessUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            if (mBrightness == null) return;
+
+            if (brightnessUpDown.Value >= 0 && brightnessUpDown.Value <= 1)
+            {
+                mBrightness.Brightness = (double)brightnessUpDown.Value;
+            }
+            else
+            {
+                brightnessUpDown.Value = 0.5M;
+                mBrightness.Brightness = 0.5;
+            }
+        }
+
+        // 대비 값이 변경될 때 호출되는 이벤트 핸들러
+        private void contrastUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            if (mContrast == null) return;
+
+            if (contrastUpDown.Value >= 0 && contrastUpDown.Value <= 1)
+            {
+                mContrast.Contrast = (double)contrastUpDown.Value;
+            }
+            else
+            {
+                contrastUpDown.Value = 0.5M;
+                mContrast.Contrast = 0.5;
+            }
+        }
+
+        // "Start/Stop Live Display" 버튼 클릭 이벤트
+        private void acqButton_Click(object sender, EventArgs e)
+        {
+            if (CogDisplay1.LiveDisplayRunning)
+            {
+                // 2단계 - 라이브 디스플레이 정지
+                CogDisplay1.StopLiveDisplay();
+                acqButton.Text = "Start Live Display";
+            }
+            else
+            {
+                // 3단계 - 라이브 디스플레이 시작
+                CogDisplay1.StartLiveDisplay(mTool.Operator);
+                acqButton.Text = "Stop Live Display";
+            }
+        }
+
+        // 리소스 해제
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                components?.Dispose();
+                var frameGrabbers = new CogFrameGrabbers();
+                foreach (ICogFrameGrabber fg in frameGrabbers)
+                {
+                    fg.Disconnect(false);
+                }
+            }
+            base.Dispose(disposing);
+        }
+    }
+}
