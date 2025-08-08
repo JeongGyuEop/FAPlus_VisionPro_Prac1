@@ -31,7 +31,6 @@
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AquisitionCameraForm));
             this.cogDisplay1 = new Cognex.VisionPro.Display.CogDisplay();
-            this.Acq_Once = new System.Windows.Forms.Button();
             this.BoardTypeLabel = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -68,16 +67,6 @@
             this.cogDisplay1.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("cogDisplay1.OcxState")));
             this.cogDisplay1.Size = new System.Drawing.Size(394, 366);
             this.cogDisplay1.TabIndex = 0;
-            // 
-            // Acq_Once
-            // 
-            this.Acq_Once.Location = new System.Drawing.Point(394, 384);
-            this.Acq_Once.Name = "Acq_Once";
-            this.Acq_Once.Size = new System.Drawing.Size(188, 34);
-            this.Acq_Once.TabIndex = 1;
-            this.Acq_Once.Text = "1회 촬영";
-            this.Acq_Once.UseVisualStyleBackColor = true;
-            this.Acq_Once.Click += new System.EventHandler(this.AcqOnce_Click);
             // 
             // BoardTypeLabel
             // 
@@ -245,7 +234,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(813, 440);
+            this.ClientSize = new System.Drawing.Size(813, 400);
             this.Controls.Add(this.exposureUpDown);
             this.Controls.Add(this.lblNoExposure);
             this.Controls.Add(this.label5);
@@ -257,7 +246,6 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.BoardTypeLabel);
-            this.Controls.Add(this.Acq_Once);
             this.Controls.Add(this.cogDisplay1);
             this.Controls.Add(this.lblNoBrightness);
             this.Controls.Add(this.lblNoContrast);
@@ -276,7 +264,6 @@
         #endregion
 
         private Cognex.VisionPro.Display.CogDisplay cogDisplay1;
-        private System.Windows.Forms.Button Acq_Once;
         private System.Windows.Forms.Label BoardTypeLabel;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;

@@ -42,7 +42,6 @@
             this.toolRun = new System.Windows.Forms.Button();
             this.resultLabel = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
-            this.resultDisplay = new Cognex.VisionPro.Display.CogDisplay();
             this.imageListView = new System.Windows.Forms.ListView();
             this.label4 = new System.Windows.Forms.Label();
             this.autoPlay = new System.Windows.Forms.Button();
@@ -54,10 +53,14 @@
             this.connectCamera = new System.Windows.Forms.Button();
             this.Acq_Once = new System.Windows.Forms.Button();
             this.liveOnOffBtn = new System.Windows.Forms.Button();
+            this.resultDisplay = new Cognex.VisionPro.CogRecordDisplay();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.Check_Stop = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.showImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trainDisplay)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.playTimer)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).BeginInit();
+            this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // showImage
@@ -153,7 +156,7 @@
             this.nextImage.BackColor = System.Drawing.Color.Snow;
             this.nextImage.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
             this.nextImage.ForeColor = System.Drawing.Color.Black;
-            this.nextImage.Location = new System.Drawing.Point(83, 690);
+            this.nextImage.Location = new System.Drawing.Point(79, 124);
             this.nextImage.Name = "nextImage";
             this.nextImage.Size = new System.Drawing.Size(74, 35);
             this.nextImage.TabIndex = 7;
@@ -166,7 +169,7 @@
             this.beforeImage.BackColor = System.Drawing.Color.Black;
             this.beforeImage.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
             this.beforeImage.ForeColor = System.Drawing.Color.White;
-            this.beforeImage.Location = new System.Drawing.Point(10, 690);
+            this.beforeImage.Location = new System.Drawing.Point(6, 124);
             this.beforeImage.Name = "beforeImage";
             this.beforeImage.Size = new System.Drawing.Size(74, 35);
             this.beforeImage.TabIndex = 8;
@@ -204,28 +207,11 @@
             this.label3.TabIndex = 14;
             this.label3.Text = "검사 결과";
             // 
-            // resultDisplay
-            // 
-            this.resultDisplay.ColorMapLowerClipColor = System.Drawing.Color.Black;
-            this.resultDisplay.ColorMapLowerRoiLimit = 0D;
-            this.resultDisplay.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
-            this.resultDisplay.ColorMapUpperClipColor = System.Drawing.Color.Black;
-            this.resultDisplay.ColorMapUpperRoiLimit = 1D;
-            this.resultDisplay.DoubleTapZoomCycleLength = 2;
-            this.resultDisplay.DoubleTapZoomSensitivity = 2.5D;
-            this.resultDisplay.Location = new System.Drawing.Point(691, 38);
-            this.resultDisplay.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
-            this.resultDisplay.MouseWheelSensitivity = 1D;
-            this.resultDisplay.Name = "resultDisplay";
-            this.resultDisplay.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("resultDisplay.OcxState")));
-            this.resultDisplay.Size = new System.Drawing.Size(378, 330);
-            this.resultDisplay.TabIndex = 21;
-            // 
             // imageListView
             // 
             this.imageListView.Alignment = System.Windows.Forms.ListViewAlignment.Left;
             this.imageListView.HideSelection = false;
-            this.imageListView.Location = new System.Drawing.Point(162, 581);
+            this.imageListView.Location = new System.Drawing.Point(158, 15);
             this.imageListView.MultiSelect = false;
             this.imageListView.Name = "imageListView";
             this.imageListView.Size = new System.Drawing.Size(909, 150);
@@ -246,7 +232,7 @@
             // 
             this.autoPlay.BackColor = System.Drawing.SystemColors.ActiveCaption;
             this.autoPlay.Font = new System.Drawing.Font("맑은 고딕", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.autoPlay.Location = new System.Drawing.Point(10, 611);
+            this.autoPlay.Location = new System.Drawing.Point(6, 45);
             this.autoPlay.Name = "autoPlay";
             this.autoPlay.Size = new System.Drawing.Size(150, 35);
             this.autoPlay.TabIndex = 24;
@@ -262,7 +248,7 @@
             0,
             0,
             65536});
-            this.playTimer.Location = new System.Drawing.Point(61, 585);
+            this.playTimer.Location = new System.Drawing.Point(57, 19);
             this.playTimer.Maximum = new decimal(new int[] {
             1,
             0,
@@ -288,7 +274,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.Font = new System.Drawing.Font("맑은 고딕", 9F, System.Drawing.FontStyle.Bold);
-            this.label5.Location = new System.Drawing.Point(15, 588);
+            this.label5.Location = new System.Drawing.Point(11, 22);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(40, 15);
             this.label5.TabIndex = 26;
@@ -302,7 +288,7 @@
             // 
             this.button1.BackColor = System.Drawing.Color.Tomato;
             this.button1.Font = new System.Drawing.Font("맑은 고딕", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.button1.Location = new System.Drawing.Point(10, 650);
+            this.button1.Location = new System.Drawing.Point(6, 84);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(150, 35);
             this.button1.TabIndex = 27;
@@ -350,31 +336,68 @@
             this.liveOnOffBtn.Name = "liveOnOffBtn";
             this.liveOnOffBtn.Size = new System.Drawing.Size(175, 41);
             this.liveOnOffBtn.TabIndex = 31;
-            this.liveOnOffBtn.Text = "라이브 촬영";
+            this.liveOnOffBtn.Text = "라이브 시작";
             this.liveOnOffBtn.UseVisualStyleBackColor = true;
             this.liveOnOffBtn.Click += new System.EventHandler(this.liveOnOffBtn_Click);
+            // 
+            // resultDisplay
+            // 
+            this.resultDisplay.ColorMapLowerClipColor = System.Drawing.Color.Black;
+            this.resultDisplay.ColorMapLowerRoiLimit = 0D;
+            this.resultDisplay.ColorMapPredefined = Cognex.VisionPro.Display.CogDisplayColorMapPredefinedConstants.None;
+            this.resultDisplay.ColorMapUpperClipColor = System.Drawing.Color.Black;
+            this.resultDisplay.ColorMapUpperRoiLimit = 1D;
+            this.resultDisplay.DoubleTapZoomCycleLength = 2;
+            this.resultDisplay.DoubleTapZoomSensitivity = 2.5D;
+            this.resultDisplay.Location = new System.Drawing.Point(696, 39);
+            this.resultDisplay.MouseWheelMode = Cognex.VisionPro.Display.CogDisplayMouseWheelModeConstants.Zoom1;
+            this.resultDisplay.MouseWheelSensitivity = 1D;
+            this.resultDisplay.Name = "resultDisplay";
+            this.resultDisplay.OcxState = ((System.Windows.Forms.AxHost.State)(resources.GetObject("resultDisplay.OcxState")));
+            this.resultDisplay.Size = new System.Drawing.Size(365, 332);
+            this.resultDisplay.TabIndex = 32;
+            // 
+            // panel1
+            // 
+            this.panel1.Controls.Add(this.imageListView);
+            this.panel1.Controls.Add(this.nextImage);
+            this.panel1.Controls.Add(this.beforeImage);
+            this.panel1.Controls.Add(this.autoPlay);
+            this.panel1.Controls.Add(this.playTimer);
+            this.panel1.Controls.Add(this.label5);
+            this.panel1.Controls.Add(this.button1);
+            this.panel1.Location = new System.Drawing.Point(1, 560);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(1084, 177);
+            this.panel1.TabIndex = 33;
+            // 
+            // Check_Stop
+            // 
+            this.Check_Stop.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.Check_Stop.Location = new System.Drawing.Point(392, 468);
+            this.Check_Stop.Name = "Check_Stop";
+            this.Check_Stop.Size = new System.Drawing.Size(278, 39);
+            this.Check_Stop.TabIndex = 34;
+            this.Check_Stop.Text = "검사 중지";
+            this.Check_Stop.UseVisualStyleBackColor = true;
+            this.Check_Stop.Click += new System.EventHandler(this.Check_Stop_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1086, 762);
+            this.ClientSize = new System.Drawing.Size(1086, 738);
+            this.Controls.Add(this.Check_Stop);
+            this.Controls.Add(this.panel1);
+            this.Controls.Add(this.resultDisplay);
             this.Controls.Add(this.liveOnOffBtn);
             this.Controls.Add(this.Acq_Once);
             this.Controls.Add(this.connectCamera);
             this.Controls.Add(this.SearchRegion);
-            this.Controls.Add(this.button1);
-            this.Controls.Add(this.label5);
-            this.Controls.Add(this.playTimer);
-            this.Controls.Add(this.autoPlay);
             this.Controls.Add(this.label4);
-            this.Controls.Add(this.imageListView);
-            this.Controls.Add(this.resultDisplay);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.resultLabel);
             this.Controls.Add(this.toolRun);
-            this.Controls.Add(this.beforeImage);
-            this.Controls.Add(this.nextImage);
             this.Controls.Add(this.loadImage);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
@@ -383,12 +406,14 @@
             this.Controls.Add(this.trainDisplay);
             this.Controls.Add(this.showImage);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = " ";
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.showImage)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trainDisplay)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.playTimer)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.resultDisplay)).EndInit();
+            this.panel1.ResumeLayout(false);
+            this.panel1.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -408,7 +433,6 @@
         private System.Windows.Forms.Button toolRun;
         private System.Windows.Forms.Label resultLabel;
         private System.Windows.Forms.Label label3;
-        private Cognex.VisionPro.Display.CogDisplay resultDisplay;
         private System.Windows.Forms.ListView imageListView;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button autoPlay;
@@ -420,6 +444,9 @@
         private System.Windows.Forms.Button connectCamera;
         private System.Windows.Forms.Button Acq_Once;
         private System.Windows.Forms.Button liveOnOffBtn;
+        private Cognex.VisionPro.CogRecordDisplay resultDisplay;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Button Check_Stop;
     }
 }
 

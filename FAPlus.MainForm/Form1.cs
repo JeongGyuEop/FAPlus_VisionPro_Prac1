@@ -21,12 +21,15 @@ namespace FAPlus.MainForm
         private ImageList imageList = new ImageList();
         private List<string> imageFiles = new List<string>(); // 이미지 폴더에서 불러온 파일 경로들의 리스트
         AquisitionCameraForm aquisitionCamera;
+        CogImage8Grey aquiredImage;
 
         private ICogImage currentImage; // 현재 화면에 표시된 이미지이자 검사 대상 이미지
 
         private int currentImageIndex = 0; // 현재 보여지고 있는 이미지가 리스트 내에서 몇 번째인지 저장
         private bool check = false; // 이미지 넘길 때 자동으로 Check_pattern()을 수행할지 여부를 결정하는 플래그
         private bool callCamera = true;
+        private int acqCount = 0;
+        private bool isLiveInspectionRunning = false;
 
         //==================================================================================================
         public Form1() {  InitializeComponent(); }
@@ -42,7 +45,35 @@ namespace FAPlus.MainForm
 
             Train.Enabled = false;
             toolRun.Enabled = false;
+            Acq_Once.Enabled = false;
+            liveOnOffBtn.Enabled = false;
+            SearchRegion.Enabled = false;
+            roi_Btn.Enabled = false;
+            panel1.Enabled = false;
+            Check_Stop.Enabled = false;
         }
+
+        //==================================================================================================
+        // 자원 해제
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            try
+            {
+                // AcqFifo 해제
+                if (aquisitionCamera.PublicAcqFifo is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+
+                // 프레임그래버 연결 해제
+                aquisitionCamera.PublicFrameGrabber?.Disconnect(false);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("폼 종료 중 오류 발생 : " + ex.Message);
+            }
+
+        } // 폼 종료 시 
 
         // ========================================================================================================
         // 버튼 클릭 이벤트
@@ -98,12 +129,24 @@ namespace FAPlus.MainForm
 
                     if (imageFiles.Count > 0)
                     {
+                        panel1.Enabled = true;
+
                         // 첫 이미지 표시
                         LoadImageByIndex(currentImageIndex, false);
                         imageListView.Items[currentImageIndex].Selected = true; // 선택 상태도 표시
 
+                        Acq_Once.Enabled = false;
+                        liveOnOffBtn.Enabled = false;
+                        SearchRegion.Enabled = true;
+                        roi_Btn.Enabled = true;
+                        connectCamera.Text = "카메라 연결";
+
+                        callCamera = true;
+
                         InitDisplay();
                     }
+
+                    
                 }
             }
 
@@ -252,8 +295,22 @@ namespace FAPlus.MainForm
                 return;
             }
 
+            if (showImage.LiveDisplayRunning)
+            {
+                showImage.StopLiveDisplay();
+            }
+
             // check는 다음 이미지 넘길 때 자동 검사할지 여부를 판단하는 플래그
             check = true;
+
+            loadImage.Enabled = false;
+            roi_Btn.Enabled = false;
+            SearchRegion.Enabled = false;
+            connectCamera.Enabled = false;
+            liveOnOffBtn.Text = "연속 촬영 검사 시작";
+            Acq_Once.Text = "1회 촬영 검사";
+            toolRun.Enabled = false;
+            Check_Stop.Enabled = true;
 
             // 실제 패턴 매칭 검사 메소드 호출
             Check_pattern();
@@ -285,6 +342,18 @@ namespace FAPlus.MainForm
 
         private void SearchRegion_Click(object sender, EventArgs e)
         {
+            if (currentImage == null) 
+            {
+                /*
+                이미지가 하나도 로드되지 않은 상태일 경우 사용자에게 알림
+                imageFiles는 이미지 파일 경로들이 저장된 리스트
+                */
+                if (currentImage == null)
+                {
+                    MessageBox.Show("이미지를 먼저 촬영하거나 불러오세요.");
+                    return;
+                }
+            }
             InitDisplay();
             CheckTrained();
 
@@ -315,21 +384,29 @@ namespace FAPlus.MainForm
         // 호출 함수
         private void LoadImageByIndex(int imageIndex, bool check)
         {
-            /*
-                using 문을 사용하는 이유
-                CogImageFile은 IDisposable을 구현하고 있는 객체로,
-                이미지 파일을 열고 닫는 리소스를 사용하므로
-                using을 통해 자동으로 Dispose()가 호출되도록 한다.
-            */
-            using (CogImageFile cogImageFile = new CogImageFile())
+            if (imageFiles.Count() == 0)
             {
-                // 선택된 이미지 경로를 열어서 읽기 모드로 설정ClearDisplay(showImage, true);
-                cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
-
-                // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
-                // 대부분의 경우 1개의 이미지만 존재하므로 [0] 사용
-                currentImage = cogImageFile[0];
+                currentImage = aquiredImage;
             }
+            else
+            {
+                /*
+                    using 문을 사용하는 이유
+                    CogImageFile은 IDisposable을 구현하고 있는 객체로,
+                    이미지 파일을 열고 닫는 리소스를 사용하므로
+                    using을 통해 자동으로 Dispose()가 호출되도록 한다.
+                */
+                using (CogImageFile cogImageFile = new CogImageFile())
+                {
+                    // 선택된 이미지 경로를 열어서 읽기 모드로 설정ClearDisplay(showImage, true);
+                    cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
+
+                    // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
+                    // 대부분의 경우 1개의 이미지만 존재하므로 [0] 사용
+                    currentImage = cogImageFile[0];
+                }
+            }
+                
 
             if (check) { Check_pattern(); }
             else
@@ -397,17 +474,16 @@ namespace FAPlus.MainForm
                 return;
             }
 
+            
             // 가장 높은 점수를 가진 첫 번째 결과 사용
             var pmResult = pmAlignTool.Results[0];
              
             // -------------------- 결과 시각화 --------------------------------
             var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"]; // Run() 이후에 사용
-            
-            // temp는 ICogRecord 타입 → 여기서 이미지 객체(ICogImage)를 추출
-            ICogImage image = temp.Content as ICogImage;
 
-            // 추출한 이미지를 CogDisplay에 표시
-            resultDisplay.Image = image;
+            //resultDisplay.StartLiveDisplay(aquisitionCamera.PublicAcqFifo);
+            resultDisplay.Record = temp;
+            resultDisplay.Fit(true);
 
             // ------------------- 검사 결과 텍스트로 표시 ----------------------
             // 점수, 위치, 회전 각도 추출
@@ -416,23 +492,24 @@ namespace FAPlus.MainForm
             double y = pmResult.GetPose().TranslationY;
             double rotationDeg = pmResult.GetPose().Rotation * 180.0 / Math.PI;
 
-            // 결과를 라벨에 표시 (소수점 포멧 포함)
-            resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
+
+            if (resultLabel.InvokeRequired)
+            {
+                resultLabel.Invoke(new Action(() =>
+                {
+                    resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
+                }));
+            }
+            else
+            {   // 결과를 라벨에 표시 (소수점 포멧 포함)
+                resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
+            }
 
         } // PMAlign 검사 함수
 
         private void InitDisplay()
         {
-            /*
-                이미지가 하나도 로드되지 않은 상태일 경우 사용자에게 알림
-                imageFiles는 이미지 파일 경로들이 저장된 리스트
-            */
-            if (imageFiles.Count == 0)
-            {
-                MessageBox.Show("이미지를 먼저 불러오세요.");
-                return;
-            }
-
+            
             toolRun.Enabled = false; // 검사 버튼 비활성화
 
             ClearDisplay(trainDisplay);
@@ -531,43 +608,176 @@ namespace FAPlus.MainForm
         // 카메라 연결 버튼 클릭
         private void connectCamera_Click(object sender, EventArgs e)
         {
+            if (showImage.LiveDisplayRunning)
+            {
+                showImage.StopLiveDisplay();
+                liveOnOffBtn.Text = "라이브 시작";
+            }
+
             aquisitionCamera = new AquisitionCameraForm(callCamera);
             aquisitionCamera.Show();
 
-            callCamera = false;
+            if (aquisitionCamera.PublicFrameGrabber != null)
+            {   
+                Acq_Once.Enabled = true;
+                liveOnOffBtn.Enabled = true;
+                SearchRegion.Enabled = true;
+                roi_Btn.Enabled = true;
+                connectCamera.Text = "카메라 연결 수정";
+                imageListView.Clear();
+                panel1.Enabled = false;
+
+                imageFiles.Clear();
+
+                callCamera = false;
+            }
+
         }
 
         private void liveOnOffBtn_Click(object sender, EventArgs e)
         {
             try
             {
-                if (aquisitionCamera != null && aquisitionCamera.PublicAcqFifo != null)
+                if (aquisitionCamera == null || aquisitionCamera.PublicAcqFifo == null)
+                {
+                    MessageBox.Show("카메라가 연결되지 않았습니다.");
+                    return;
+                }
+
+                if (!check)
                 {
                     if (showImage.LiveDisplayRunning)
                     {
                         showImage.StopLiveDisplay();
-                        liveOnOffBtn.Text = "Start Live";
+                        liveOnOffBtn.Text = "라이브 시작";
                     }
                     else
                     {
                         showImage.StartLiveDisplay(aquisitionCamera.PublicAcqFifo);
-                        liveOnOffBtn.Text = "Stop Live";
+                        liveOnOffBtn.Text = "라이브 종료";
                     }
                 }
                 else
                 {
-                    MessageBox.Show("카메라가 연결되지 않았습니다.");
+                    if (!isLiveInspectionRunning)
+                    {
+                        // 이벤트 중복 방지
+                        aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
+                        aquisitionCamera.PublicAcqFifo.Complete += AcqFifo_Complete;
+
+                        aquisitionCamera.PublicAcqFifo.StartAcquire();
+                        liveOnOffBtn.Text = "연속 촬영 검사 종료";
+                        isLiveInspectionRunning = true;
+                    }
+                    else
+                    {
+                        aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
+                        liveOnOffBtn.Text = "연속 촬영 검사 시작";
+                        isLiveInspectionRunning = false;
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show("라이브 실행 오류: " + ex.Message);
+                MessageBox.Show("라이브 실행 & 연속 촬영 검사 오류: " + ex.Message);
+            }
+        }
+
+        private void AcqFifo_Complete(object sender, CogCompleteEventArgs e)
+        {
+            int ticket, triggerNum;
+
+            try
+            {
+                currentImage = aquisitionCamera.PublicAcqFifo.CompleteAcquire(e.Ticket, out ticket, out triggerNum);
+
+                if (check && currentImage != null)
+                {
+                    Check_pattern();
+                }
+
+                if (isLiveInspectionRunning)
+                {
+                    aquisitionCamera.PublicAcqFifo.StartAcquire();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("연속 촬영 검사 중 오류 발생: " + ex.Message);
+                isLiveInspectionRunning = false;
             }
         }
 
         private void AcqOnce_Click(object sender, EventArgs e)
         {
+            int triggerNum;
 
+            if (aquisitionCamera == null || aquisitionCamera.PublicAcqFifo == null) 
+            {
+                MessageBox.Show("카메라가 연결되지 않았습니다.");
+            }
+
+            // 연속 검사 모드 종료 
+            if (isLiveInspectionRunning)
+            {
+                isLiveInspectionRunning = false;
+                aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
+
+                // 시간 딜레이 추가
+                System.Threading.Thread.Sleep(100); // 100ms 정도 여유
+                liveOnOffBtn.Text = "연속 촬영 검사 시작";
+            }
+
+            try
+            {
+                // 2. 단일 촬영
+                aquiredImage = aquisitionCamera.PublicAcqFifo.Acquire(out triggerNum) as CogImage8Grey;
+                currentImage = aquiredImage;
+
+                if (check)
+                {
+                    Check_pattern();
+                }
+                else
+                {
+                    showImage.Image = aquiredImage;
+                }
+
+                // 3. 라이브 디스플레이 중이면 중지
+                if (showImage.LiveDisplayRunning)
+                {
+                    showImage.StopLiveDisplay();
+                    liveOnOffBtn.Text = "라이브 시작";
+                }
+
+                // 4. 메모리 정리
+                acqCount++;
+                if (acqCount >= 5)
+                {
+                    GC.Collect();
+                    acqCount = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("1회 촬영 중 오류 발생: " + ex.Message);
+            }
+        }
+
+        private void Check_Stop_Click(object sender, EventArgs e)
+        {
+            loadImage.Enabled = true;
+            roi_Btn.Enabled = true;
+            SearchRegion.Enabled = true;
+            connectCamera.Enabled = true;
+            liveOnOffBtn.Text = "라이브 시작";
+            Acq_Once.Text = "1회 촬영";
+            toolRun.Enabled = true;
+            Check_Stop.Enabled = false;
+            check = false;
+
+            aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
         }
     }
 }
+
