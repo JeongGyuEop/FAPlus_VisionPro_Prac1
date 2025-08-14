@@ -1,7 +1,8 @@
 ﻿using Cognex.VisionPro;
 using Cognex.VisionPro.Display;
 using Cognex.VisionPro.ImageFile;
-using Cognex.VisionPro.PMAlign;
+using FAPlus.AquisitionCamera;
+using FAPlus.MainForm.Service;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -9,31 +10,28 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using FAPlus.AquisitionCamera;
 
 namespace FAPlus.MainForm
 {
     public partial class Form1 : Form
     {
-        private CogRectangle roiRegion; // ROI로 사용할 크기조절만 가능 네모 영역
-        private CogCoordinateAxes coordinateAxes; // 중심 좌표 축(X축, Y축, 회전)을 표현
-        private CogPMAlignTool pmAlignTool = new CogPMAlignTool(); // VisionPro에서 패턴 매칭(템플릿 매칭)을 수행하는 핵심 툴
+        private PatternToolService _patternService = new PatternToolService();
+        private readonly CameraService _camera = new CameraService();
+        private readonly RegionManager _regionManager = new RegionManager();
+
         private ImageList imageList = new ImageList();
         private List<string> imageFiles = new List<string>(); // 이미지 폴더에서 불러온 파일 경로들의 리스트
-        AquisitionCameraForm aquisitionCamera;
-        CogImage8Grey aquiredImage;
 
         private ICogImage currentImage; // 현재 화면에 표시된 이미지이자 검사 대상 이미지
 
         private int currentImageIndex = 0; // 현재 보여지고 있는 이미지가 리스트 내에서 몇 번째인지 저장
         private bool check = false; // 이미지 넘길 때 자동으로 Check_pattern()을 수행할지 여부를 결정하는 플래그
-        private bool callCamera = true;
-        private int acqCount = 0;
+        private bool firstOpenCamera  = true;
         private bool isLiveInspectionRunning = false;
 
-        //==================================================================================================
+        //========================
+        // 폼 Load & Close
         public Form1() {  InitializeComponent(); }
-
         private void Form1_Load(object sender, EventArgs e)
         {
             imageList.ImageSize = new Size(100, 100); // 썸네일 크기 설정 (가로 100px, 세로 100px)
@@ -42,8 +40,12 @@ namespace FAPlus.MainForm
             imageListView.LargeImageList = imageList; // ListView에 이미지 리스트 연결
 
             imageListView.SelectedIndexChanged += ImageListView_SelectedIndexChanged; // 사용자가 썸네일을 클릭했을 때 이벤트
+            _regionManager.RoiChanged += (roi, axes) =>
+            {
+                showImage.StaticGraphics.Remove("centerPoint");
+                showImage.StaticGraphics.Add(axes, "centerPoint");
+            };
 
-            Train.Enabled = false;
             toolRun.Enabled = false;
             Acq_Once.Enabled = false;
             liveOnOffBtn.Enabled = false;
@@ -51,45 +53,16 @@ namespace FAPlus.MainForm
             roi_Btn.Enabled = false;
             panel1.Enabled = false;
             Check_Stop.Enabled = false;
+            PatternVppSave.Enabled = false;
         }
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e) => _camera.Dispose();
 
-        //==================================================================================================
-        // 자원 해제
-        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
-        {
-            try
-            {
-                // AcqFifo 해제
-                if (aquisitionCamera.PublicAcqFifo is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
-
-                // 프레임그래버 연결 해제
-                aquisitionCamera.PublicFrameGrabber?.Disconnect(false);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("폼 종료 중 오류 발생 : " + ex.Message);
-            }
-
-        } // 폼 종료 시 
-
-        // ========================================================================================================
-        // 버튼 클릭 이벤트
+        // =======================
+        // 이미지 파일 로드
         private void LoadImage_Click(object sender, EventArgs e)
         {
-            /*
-                using 문은 C#의 IDisposable 객체를 안전하게 사용하고 자동으로 해제해주는 문법
-                FolderBrowserDialog는 윈도우 리소스를 사용하는 객체이기 때문에
-                using을 사용하여 사용 후 자동으로 Dispose()가 호출되도록 한다.
-            */
             using (FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog())
             {
-                /*
-                    folderBrowserDialog.ShowDialog()는 사용자가 폴더를 선택한 후 누른 버튼이 무엇인지 반환
-                    (DialogResult.OK 는 "확인" 버튼을 눌렸을 때를 의미한다.)
-                */
                 if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
                 {
                     // 사용자가 선택한 폴더 경로를 가져온다.(예: "C:\Images")
@@ -99,12 +72,6 @@ namespace FAPlus.MainForm
                     // 소문자로 비교하기 위해 확장자를 전부 소문자로 정의한다.
                     string[] supportedExtensions = new[] { ".bmp", ".jpg", ".jpeg", ".png" };
 
-                    /*
-                        Directory.GetFiles() : 선택한 폴더 내 모든 파일 경로 문자열 배열 반환
-                        Path.GetExtension() : 파일의 확장자만 추출 (예: ".jpg")
-                        Where(...) : LINQ 문법. 조건에 맞는 파일만 필터링
-                        ToList() : IEnumerable<string>을 List<string>으로 변환
-                    */
                     imageFiles = Directory.GetFiles(selectedFolder)
                                           .Where(file => supportedExtensions.Contains(Path.GetExtension(file).ToLower()))
                                           .ToList();
@@ -141,26 +108,19 @@ namespace FAPlus.MainForm
                         roi_Btn.Enabled = true;
                         connectCamera.Text = "카메라 연결";
 
-                        callCamera = true;
+                        firstOpenCamera = true;
 
-                        InitDisplay();
+                        CheckInit_Display();
                     }
 
                     
                 }
             }
 
-            /*
-                showImage는 VisionPro의 CogDisplay 객체
-                이전에 그려진 그래픽 요소를 제거하여 새로운 이미지가 깨끗하게 표시되도록 한다.
-                StaticGraphics : 고정된 그래픽 (예: 학습 영역, 박스, 텍스트 등)
-                InteractiveGraphics : 마우스로 조작 가능한 ROI 등의 객첵
-             */
             showImage.StaticGraphics.Clear();
             showImage.InteractiveGraphics.Clear();
 
         }// 이미지를 로드하는 버튼
-
         private void NextImage_Click(object sender, EventArgs e)
         {
             imageListView.SelectedItems.Clear();
@@ -172,7 +132,6 @@ namespace FAPlus.MainForm
             imageListView.Items[currentImageIndex].Selected = true; 
 
         } // 다음 이미지를 보여주기 위한 버튼
-
         private void BeforeImage_Click(object sender, EventArgs e)
         {
             imageListView.SelectedItems.Clear();
@@ -184,139 +143,40 @@ namespace FAPlus.MainForm
             imageListView.Items[currentImageIndex].Selected = true;
 
         } // 이전 이미지를 보여주기 위한 버튼
-
-        private void RoiBtn_Click(object sender, EventArgs e)
+        private void LoadImageByIndex(int imageIndex, bool check)
         {
-            InitDisplay();
-            CheckTrained();
+            using (CogImageFile cogImageFile = new CogImageFile())
+            {
+                // 선택된 이미지 경로를 열어서 읽기 모드로 설정ClearDisplay(showImage, true);
+                cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
 
-            Train.Enabled = true;
+                // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
+                // 대부분의 경우 1개의 이미지만 존재하므로 [0] 사용
+                currentImage = cogImageFile[0];
+            }
+                
+            if (check) { Check_pattern(currentImage); }
+            else
+            {
+                showImage.Fit(true);
+                ClearGraphic_Display(showImage, currentImage); 
+            }
 
-            roiRegion = new CogRectangle(); // CogRectangle은 크기와 위치 변경만 가능한 사각형 객체
-            coordinateAxes = new CogCoordinateAxes(); // 중심 좌표를 시각적으로 표현하는 객체 (십자축 모양)
+        } // 여러 장의 이미지를 로드하기 위한 함수
+        private void ImageListView_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (imageListView.SelectedIndices.Count == 0) return;
 
+            currentImageIndex = imageListView.SelectedIndices[0];
             LoadImageByIndex(currentImageIndex, check);
 
-            showImage.Fit(true); // 디스플레이에 이미지 크기를 딱 맞게 맞춤
-            check = false; // 학습 후 검사 여부를 결정하는 플래그. ROI 설정 시 검사 off
+        // 선택된 항목이 화면에 보이도록 자동 스크롤
+        imageListView.EnsureVisible(currentImageIndex);
 
-
-            // ROI 영역 설정 ----------------------------------------------------------
-            // SetCenterWidthHeight(X, Y, width, height) -> 중심 좌표(150, 150), 가로 세로 길이(300, 300)
-            roiRegion.SetCenterWidthHeight(150, 150, 300, 300); 
-
-            coordinateAxes.OriginX = roiRegion.CenterX; // ROI의 중심 x좌표
-            coordinateAxes.OriginY = roiRegion.CenterY; // ROI의 중심 y좌표
-
-            roiRegion.GraphicDOFEnable = CogRectangleDOFConstants.All; // ROI의 변형 자유도 설정 (이동, 크기 조절 허용)
-
-            roiRegion.Interactive = true; // ROI 객체를 마우스로 조절 가능하게 함.
-
-            roiRegion.Changed += RoiRegion_Changed; // ROI 변경 시 중심축도 따라가도록 이벤트 등록
-
-
-            // 디스플레이에 ROI와 중심좌표 추가 ---------------------------------------
-            showImage.InteractiveGraphics.Clear(); // 기존의 InteractiveGraphics를 모두 제거하여 깨끗한 상태로 만듦
-            showImage.StaticGraphics.Clear();
-
-            // ROI 영역을 화면에 추가 (태그명: "ROI", 상호작용 가능하게 true)
-            showImage.InteractiveGraphics.Add(roiRegion, "ROI", true);
-
-            // 중심 좌표축을 화면에 추가 (태그명: "centerPoint", 상호작용 가능)
-            showImage.StaticGraphics.Add(coordinateAxes, "centerPoint");
-
-
-        } // ROI 영역을 설정하기 위한 버튼
-
-        private void Train_Click(object sender, EventArgs e)
-        {
-            // ROI와 중심점이 제대로 설정되었는지 확인
-            if (roiRegion == null || coordinateAxes == null)
-            {
-                MessageBox.Show("ROI 영역과 중심 점이 설정되지 않았습니다. 먼저 설정해주세요.");
-                return;
-            }
-
-            // ---------------------- 학습 설정 ------------------------------------
-            // 현재 디스플레이에 표시된 이미지를 PMAlign 패턴 학습 이미지로 설정
-            pmAlignTool.Pattern.TrainImage = currentImage;
-
-            //pmAlignTool.Pattern.untrain;
-
-            // 학습할 패턴의 기준 좌표 원점을 사용자가 지정한 좌표축 중심으로 설정
-            pmAlignTool.Pattern.Origin.TranslationX = coordinateAxes.OriginX;
-            pmAlignTool.Pattern.Origin.TranslationY = coordinateAxes.OriginY;
-            //pmAlignTool.Pattern.Origin.Rotation = coordinateAxes.Rotation;
-
-            // 학습에 사용할 ROI 영역 지정 (사각형)
-            pmAlignTool.Pattern.TrainRegion = roiRegion;
-
-            try
-            {
-                // ----------------------- 회전 허용 범위 설정 ----------------------------------
-                // LowHigh 설정은 회전 각도의 최소~최대 범위를 수동 지정한다는 뜻
-                pmAlignTool.RunParams.ZoneAngle.Configuration = CogPMAlignZoneConstants.LowHigh;
-
-                // 회전 허용 범위를 -π ~ +π (즉, -180도 ~ +180도)로 지정
-                pmAlignTool.RunParams.ZoneAngle.Low =  CogMisc.RadToDeg(-180);  // -180도
-                pmAlignTool.RunParams.ZoneAngle.High = CogMisc.RadToDeg(180);  // +180도
-
-                // ----------------------- 패턴 학습 수행 --------------------------------------
-                // 설정한 이미지와 ROI, 기준 원점 정보를 바탕으로 패턴 학습을 수행
-                pmAlignTool.Pattern.TrainAlgorithm = CogPMAlignTrainAlgorithmConstants.PatMax;
-                pmAlignTool.Pattern.Train();
-                MessageBox.Show("패턴 학습이 완료되었습니다.");
-
-                if(pmAlignTool.Pattern.Trained)
-                {
-                    Train.Enabled = false;
-                    toolRun.Enabled = true;
-                    ClearDisplay(showImage, currentImage);
-                }
-
-                // ----------------------- 학습 결과 표시 ---------------------------------------
-                // 학습된 패턴을 이미지(ROI 영역 내 부분)를 TrainDisplay에 표시
-                ClearDisplay(trainDisplay, pmAlignTool.Pattern.GetTrainedPatternImage());
-
-                // 패턴의 외곽선 및 구조 정보를 Coarse 형태로 표시 (보통 Cyan으로 표현)
-                trainDisplay.StaticGraphics.AddList(pmAlignTool.Pattern.CreateGraphicsCoarse(CogColorConstants.Cyan), "coarsePattern");
-
-            }
-            catch (Exception ex) {  MessageBox.Show("패턴 학습 실패: " + ex.Message);  }
-
-        } // 이미지 Train을 위한 버튼
-
-        private void CheckRun_Click(object sender, EventArgs e)
-        {
-            // 검사 실행 전 필수 체크 : 패턴이 학습되지 않은 경우 검사 불가
-            if (pmAlignTool.Pattern.Trained == false)
-            {
-                MessageBox.Show("패턴을 먼저 학습하세요.");
-                return;
-            }
-
-            if (showImage.LiveDisplayRunning)
-            {
-                showImage.StopLiveDisplay();
-            }
-
-            // check는 다음 이미지 넘길 때 자동 검사할지 여부를 판단하는 플래그
-            check = true;
-
-            loadImage.Enabled = false;
-            roi_Btn.Enabled = false;
-            SearchRegion.Enabled = false;
-            connectCamera.Enabled = false;
-            liveOnOffBtn.Text = "연속 촬영 검사 시작";
-            Acq_Once.Text = "1회 촬영 검사";
-            toolRun.Enabled = false;
-            Check_Stop.Enabled = true;
-
-            // 실제 패턴 매칭 검사 메소드 호출
-            Check_pattern();
-
-        } // 트레인 이미지 검사 버튼
-
+        } // 썸네일 이미지의 선택된 인덱스가 변경될 때 이벤트
+       
+        // =======================
+        // 타이머 설정
         private void AutoPlay_Click(object sender, EventArgs e)
         {
             if (imageFiles == null || imageFiles.Count == 0) return;
@@ -331,7 +191,6 @@ namespace FAPlus.MainForm
             setTime.Start();
 
         } // Auto 검사를 위한 Auto Play 버튼
-
         private void StopAutoPlay_Click(object sender, EventArgs e)
         {
             setTime.Stop();
@@ -339,250 +198,13 @@ namespace FAPlus.MainForm
             beforeImage.Enabled = true;
             nextImage.Enabled = true;
         } // Auto 검사를 중지하기 위한 Stop Auto Play 버튼
-
-        private void SearchRegion_Click(object sender, EventArgs e)
-        {
-            if (currentImage == null) 
-            {
-                /*
-                이미지가 하나도 로드되지 않은 상태일 경우 사용자에게 알림
-                imageFiles는 이미지 파일 경로들이 저장된 리스트
-                */
-                if (currentImage == null)
-                {
-                    MessageBox.Show("이미지를 먼저 촬영하거나 불러오세요.");
-                    return;
-                }
-            }
-            InitDisplay();
-            CheckTrained();
-
-            Train.Enabled = false;
-
-            int imageWidth = currentImage.Width;
-            int imageHeight = currentImage.Height;
-
-            double centerX = imageWidth / 2.0;
-            double centerY = imageHeight / 2.0;
-
-            CogRectangle searchRegion = new CogRectangle();
-            searchRegion.SetCenterWidthHeight(centerX, centerY, imageWidth, imageHeight);
-
-            searchRegion.GraphicDOFEnable = CogRectangleDOFConstants.All;
-            searchRegion.Interactive = true;
-            searchRegion.Color = CogColorConstants.Cyan;
-
-            // 디스플레이에 표시
-            ClearDisplay(showImage, currentImage);
-            showImage.InteractiveGraphics.Add(searchRegion, "searchRegion", true);
-
-            pmAlignTool.SearchRegion = searchRegion;
-        } // 검색영역 버튼
-
-
-        // ========================================================================================================
-        // 호출 함수
-        private void LoadImageByIndex(int imageIndex, bool check)
-        {
-            if (imageFiles.Count() == 0)
-            {
-                currentImage = aquiredImage;
-            }
-            else
-            {
-                /*
-                    using 문을 사용하는 이유
-                    CogImageFile은 IDisposable을 구현하고 있는 객체로,
-                    이미지 파일을 열고 닫는 리소스를 사용하므로
-                    using을 통해 자동으로 Dispose()가 호출되도록 한다.
-                */
-                using (CogImageFile cogImageFile = new CogImageFile())
-                {
-                    // 선택된 이미지 경로를 열어서 읽기 모드로 설정ClearDisplay(showImage, true);
-                    cogImageFile.Open(imageFiles[imageIndex], CogImageFileModeConstants.Read);
-
-                    // 읽어온 이미지 파일 중 첫 번째 이미지 객체를 currentImage로 저장
-                    // 대부분의 경우 1개의 이미지만 존재하므로 [0] 사용
-                    currentImage = cogImageFile[0];
-                }
-            }
-                
-
-            if (check) { Check_pattern(); }
-            else
-            {
-                showImage.Fit(true);
-                ClearDisplay(showImage, currentImage); 
-            }
-
-        } // 여러 장의 이미지를 로드하기 위한 함수
-
-        private void Check_pattern()
-        {
-            Console.WriteLine(currentImageIndex);
-
-            // ----------------- 패턴 매칭 검사 실행 ----------------------
-            // 검사 대상 이미지를 PMAlignTool 에 설정
-            pmAlignTool.InputImage = currentImage;
-
-            pmAlignTool.CurrentRecordEnable = CogPMAlignCurrentRecordConstants.All;
-
-            /*
-                CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures 사용하려면,
-                pmAlignTool.RunParams.SaveMatchInfo = true; 반드시 있어야 한다.
-             */
-            pmAlignTool.RunParams.SaveMatchInfo = true;
-            pmAlignTool.LastRunRecordDiagEnable = CogPMAlignLastRunRecordDiagConstants.InputImageByReference | CogPMAlignLastRunRecordDiagConstants.ResultsMatchFeatures;
-
-            pmAlignTool.LastRunRecordEnable = CogPMAlignLastRunRecordConstants.ResultsOrigin|
-                                              CogPMAlignLastRunRecordConstants.ResultsMatchRegion;
-
-            // Tip!
-            /*
-                이 코드를 사용해서 내가 설정한 PMAlignTool의 내용을 확인할 수 있음.
-                Show()와 ShowDialog()의 차이를 알아야 한다.
-
-                    using (Form a = new Form())
-                    {
-                        a.Width = 800;
-                        a.Height = 1200;
-                        using (CogPMAlignEditV2 kiki = new CogPMAlignEditV2())
-                        {
-                            kiki.Subject = pmAlignTool;
-                            kiki.Dock = DockStyle.Fill;
-                            a.Controls.Add(kiki);
-                            a.ShowDialog();
-                        }
-                    }
-             */
-
-            /*
-                PMAlignTool 실행 -> 내부적으로 학습된 패턴을 이미지에서 찾음.
-                RunStatus = {Error: LastRunRecordDiagEnable의 cogPMAlignLastRunRecordDiagResultsMatchFeatures 비트가 활성화된 경우 RunParams.SaveMatchInfo는 true여야 합니다.}
-                Run() 이후에 오류가 보인다는 것에 주의!
-            */
-            pmAlignTool.Run(); // PMAlignTool 실행 -> 내부적으로 학습된 패턴을 이미지에서 찾음.
-
-            if (pmAlignTool.Results == null) return;
-
-            // 결과가 0개이면 매칭 실패 -> 이후 처리하지 않고 종료
-            if (pmAlignTool.Results.Count == 0) {
-                resultDisplay.Image = null;
-                resultDisplay.StaticGraphics.Clear();
-                resultDisplay.Image = currentImage;
-                MessageBox.Show("매칭 실패");
-                return;
-            }
-
-            
-            // 가장 높은 점수를 가진 첫 번째 결과 사용
-            var pmResult = pmAlignTool.Results[0];
-             
-            // -------------------- 결과 시각화 --------------------------------
-            var temp = pmAlignTool.CreateLastRunRecord().SubRecords["InputImage"]; // Run() 이후에 사용
-
-            //resultDisplay.StartLiveDisplay(aquisitionCamera.PublicAcqFifo);
-            resultDisplay.Record = temp;
-            resultDisplay.Fit(true);
-
-            // ------------------- 검사 결과 텍스트로 표시 ----------------------
-            // 점수, 위치, 회전 각도 추출
-            double score = pmResult.Score;
-            double x = pmResult.GetPose().TranslationX;
-            double y = pmResult.GetPose().TranslationY;
-            double rotationDeg = pmResult.GetPose().Rotation * 180.0 / Math.PI;
-
-
-            if (resultLabel.InvokeRequired)
-            {
-                resultLabel.Invoke(new Action(() =>
-                {
-                    resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
-                }));
-            }
-            else
-            {   // 결과를 라벨에 표시 (소수점 포멧 포함)
-                resultLabel.Text = $"Score: {score:F2}, X: {x:F1}, Y: {y:F1}, R: {rotationDeg:F1}°";
-            }
-
-        } // PMAlign 검사 함수
-
-        private void InitDisplay()
-        {
-            
-            toolRun.Enabled = false; // 검사 버튼 비활성화
-
-            ClearDisplay(trainDisplay);
-            ClearDisplay(resultDisplay);
-
-            resultLabel.Text = ""; // 검사 결과 텍스트 초기화
-        } // ROI 영역 설정 || 검색 영역 설정에 대한 공통 부분 처리 함수
-
-        private void CheckTrained()
-        {
-            if (pmAlignTool.Pattern.Trained)
-            {
-                pmAlignTool.Pattern.TrainImage = null;
-                check = false;
-
-                // 학습이 되어 있음
-                Console.WriteLine("기존의 패턴이 초기화되었습니다.");
-            }
-            else
-            {
-                toolRun.Enabled = false; // 검사 버튼 비활성화
-
-                // 학습이 되어 있지 않음
-                Console.WriteLine("학습된 패턴이 없습니다.");
-            }
-        } // Train 확인 여부 호출 함수
-
-        private void ClearDisplay(CogDisplay display, ICogImage currentImage = null) // 디스플레이 초기화 함수
-        {
-            display.StaticGraphics.Clear();
-            display.InteractiveGraphics.Clear();
-            display.Image = currentImage != null ? currentImage : null;
-            display.Fit(true);
-        }
-
-
-        // ========================================================================================================
-        // 변화 이벤트
-        private void ImageListView_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (imageListView.SelectedIndices.Count == 0) return;
-
-            currentImageIndex = imageListView.SelectedIndices[0];
-            LoadImageByIndex(currentImageIndex, check);
-
-            // 선택된 항목이 화면에 보이도록 자동 스크롤
-            imageListView.EnsureVisible(currentImageIndex);
-
-        } // 썸네일 이미지의 선택된 인덱스가 변경될 때 이벤트
-
-        private void RoiRegion_Changed(object sender, CogChangedEventArgs e)
-        {
-
-            // coordinateAxes : 십자축 모양의 좌표계 표시 객체 (ROI의 중심 위치로 좌표축 원점 이동)
-            coordinateAxes.OriginX = roiRegion.CenterX; // ROI의 중심 x좌표
-            coordinateAxes.OriginY = roiRegion.CenterY; // ROI의 중심 y좌표
-
-            // 디스플레이 갱신
-            showImage.StaticGraphics.Remove("centerPoint"); // 이전 좌표축 제거
-
-            // 중심 좌표축을 화면에 추가 (태그명: "centerPoint", 상호작용 가능)
-            showImage.StaticGraphics.Add(coordinateAxes, "centerPoint");
-
-
-        } // ROI 영역 이동 및 변화에 대한 이벤트
-
         private void SetTime_Tick(object sender, EventArgs e)
         {
             try
             {
                 // 중복 방지 -> 추후에 변경
                 setTime.Stop();
-                
+
                 // 다음 이미지 인덱스로 이동
                 currentImageIndex++;
 
@@ -603,181 +225,300 @@ namespace FAPlus.MainForm
             }
         } // Auto Play 타이머가 일정 시간마다 실행될 때 호출되는 이벤트 핸들러
 
+        // =======================
+        // 디스플레이 설정
+        private void ClearGraphic_Display(CogDisplay display, ICogImage currentImage = null) // 디스플레이 그래픽 초기화 함수
+        {
+            display.StaticGraphics.Clear();
+            display.InteractiveGraphics.Clear();
+            display.Image = currentImage != null ? currentImage : null;
+            display.Fit(true);
+        }
+        private void CheckInit_Display()
+        {
+            toolRun.Enabled = false; // 검사 버튼 비활성화
 
-        // ========================================================================================================
-        // 카메라 연결 버튼 클릭
+            ClearGraphic_Display(trainDisplay);
+            ClearGraphic_Display(resultDisplay);
+
+            resultLabel.Text = ""; // 검사 결과 텍스트 초기화
+        } // ROI, 검색 영역 설정에 대한 검사 디스플레이 초기화
+
+        // ======================
+        // 카메라
         private void connectCamera_Click(object sender, EventArgs e)
         {
+            _camera.StopLive(showImage);
+            liveOnOffBtn.Text = "라이브 시작";
+
+            // 설정 폼을 서비스와 함께 띄움
+            var configured = false;
+            using (var dlg = new AquisitionCameraForm(_camera, firstOpenCamera))
+            {
+                var result = dlg.ShowDialog(this);
+                configured = (result == DialogResult.OK) && _camera.IsConfigured;
+            }
+            
+            if (!configured) return;
+
+            Acq_Once.Enabled = liveOnOffBtn.Enabled = true;
+            connectCamera.Text = "카메라 연결 수정";
+            imageListView.Clear();
+            panel1.Enabled = false;
+            imageFiles.Clear();
+            firstOpenCamera = false;
+        }
+        private void liveOnOffBtn_Click(object sender, EventArgs e)
+        {
+            if (!check)
+            {
+                if (showImage.LiveDisplayRunning)
+                {
+                    _camera.StopLive(showImage);
+                    liveOnOffBtn.Text = "라이브 시작";
+                    Acq_Once.Enabled = true;
+                }
+                else
+                {
+                    _camera.StartLive(showImage);
+                    liveOnOffBtn.Text = "라이브 종료";
+                    Acq_Once.Enabled = false;
+                    SearchRegion.Enabled = false;
+                    roi_Btn.Enabled = false;
+                }
+            }
+            else
+            {
+                if (isLiveInspectionRunning)
+                {
+                    _camera.StopLoop();
+                    liveOnOffBtn.Text = "연속 촬영 검사 시작";
+                    isLiveInspectionRunning = false;
+                }
+                else
+                {
+                    _camera.StartLoop();
+                    liveOnOffBtn.Text = "연속 촬영 검사 종료";
+                    isLiveInspectionRunning = true;
+                }
+            }
+        }
+        private void AcqOnce_Click(object sender, EventArgs e)
+        {   
+            // 라이브 검사가 진행중일 때 경우
+            if (check)
+            {
+                if (isLiveInspectionRunning)
+                {
+                    _camera.StopLoop();
+                    isLiveInspectionRunning = false;
+                    liveOnOffBtn.Text = "연속 촬영 검사 시작";
+                }
+                _camera.CheckAcquireOnce();
+            }
+            else
+            {
+                if (showImage.LiveDisplayRunning)
+                {
+                    _camera.StopLive(showImage);
+                }
+                SearchRegion.Enabled = roi_Btn.Enabled = true;
+                liveOnOffBtn.Text = "라이브 시작";
+                var img = _camera.AcquireOnce();
+                showImage.Image = img;
+                currentImage = img;
+            }
+        }
+
+        // =======================
+        // 패턴 Load & Save
+        private void PatternVppLoad_Click(object sender, EventArgs e)
+        {
+            _patternService.LoadVpp(@"vpp\pattern.vpp");
+            if (!_patternService.IsTrained)
+            {
+                MessageBox.Show("저장된 패턴이 없습니다. ROI와 검색 영역을 설정한 후 패턴을 학습하세요.");
+                return;
+            }
+            else
+            {
+                // TrainDisplay에 트레인 이미지와 Coarse 피처 렌더
+                trainDisplay.StaticGraphics.Clear();
+                trainDisplay.Image = _patternService.GetTrainedPatternImage(); 
+                var coarse = _patternService.CreateTrainedPatternCoarseGraphics(CogColorConstants.Cyan); 
+                if (coarse != null) trainDisplay.StaticGraphics.AddList(coarse, "coarsePattern");
+
+                PatternVppSave.Enabled = false;
+                toolRun.Enabled = true;
+            }
+        } // 패턴 저장 버튼
+        private void PatternVppSave_Click(object sender, EventArgs e)
+        {
+            // ROI와 중심점이 제대로 설정되었는지 확인
+            if (_regionManager.Roi == null || _regionManager.Axes == null)
+            {
+                MessageBox.Show("ROI 영역과 중심 점이 설정되지 않았습니다. 먼저 설정해주세요.");
+                return;
+            }
+
+            var trainOk = _patternService.Train(currentImage, _regionManager.Roi, _regionManager.Axes);
+            if (!trainOk) { MessageBox.Show("패턴 학습 실패"); return; }
+            MessageBox.Show("패턴 학습 완료");
+
+            if (_patternService.IsTrained)
+            {
+                toolRun.Enabled = true;
+                ClearGraphic_Display(showImage, currentImage);
+
+                _patternService.SaveVpp(@"vpp\pattern.vpp");
+                MessageBox.Show("패턴 저장 완료");
+            }
+
+            ClearGraphic_Display(trainDisplay, _patternService.GetTrainedPatternImage());
+            var coarse = _patternService.CreateTrainedPatternCoarseGraphics(CogColorConstants.Cyan);
+            if (coarse != null) trainDisplay.StaticGraphics.AddList(coarse, "coarsePattern");
+
+        } // 패턴 로드 버튼
+
+        // =======================
+        // 영역 설정
+        private void SearchRegion_Click(object sender, EventArgs e)
+        {
+            if (currentImage == null)
+            {
+                MessageBox.Show("이미지를 먼저 촬영하거나 불러오세요.");
+                return;
+            }
+
+            CheckInit_Display();
+            CheckTrained();
+
+            int imageWidth = currentImage.Width;
+            int imageHeight = currentImage.Height;
+            double centerX = currentImage.Width / 2.0;
+            double centerY = currentImage.Height / 2.0;
+
+            var searchRegion = _regionManager.CreateSearchRegion(centerX, centerY, imageWidth, imageHeight);
+            if (searchRegion != null)
+            {
+                ClearGraphic_Display(showImage, currentImage);
+                showImage.InteractiveGraphics.Add(searchRegion, "searchRegion", true);
+            }
+
+        } // 검색영역 버튼
+        private void RoiBtn_Click(object sender, EventArgs e)
+        {
+            if (currentImage == null)
+            {
+                MessageBox.Show("이미지를 먼저 촬영하거나 불러오세요.");
+                return;
+            }
+
+            CheckInit_Display();
+            CheckTrained();
+
+            showImage.Fit(true); // 디스플레이에 이미지 크기를 딱 맞게 맞춤
+            check = false; // 학습 후 검사 여부를 결정하는 플래그. ROI 설정 시 검사 off
+
+            // ROI 영역 설정
+            var (roiRegion, coordinateAxes) = _regionManager.CreateRoi(150, 150, 300, 300);
+            showImage.InteractiveGraphics.Add(roiRegion, "ROI", true); // ROI 영역을 화면에 추가 
+            showImage.StaticGraphics.Add(coordinateAxes, "centerPoint"); // 중심 좌표축을 화면에 추가
+
+            PatternVppSave.Enabled = true;
+        } // ROI 영역을 설정하기 위한 버튼
+
+        // =======================
+        // 검사 설정
+        private void CheckRun_Click(object sender, EventArgs e)
+        {
+            // 검사 실행 전 필수 체크 : 패턴이 학습되지 않은 경우 검사 불가
+            if (!_patternService.IsTrained)
+            {
+                MessageBox.Show("패턴을 먼저 학습하세요.");
+                return;
+            }
+
             if (showImage.LiveDisplayRunning)
             {
                 showImage.StopLiveDisplay();
-                liveOnOffBtn.Text = "라이브 시작";
             }
 
-            aquisitionCamera = new AquisitionCameraForm(callCamera);
-            aquisitionCamera.Show();
+            // check는 다음 이미지 넘길 때 자동 검사할지 여부를 판단하는 플래그
+            check = true;
+            _camera.ImageReceived -= Check_pattern;
+            _camera.ImageReceived += Check_pattern;
 
-            if (aquisitionCamera.PublicFrameGrabber != null)
-            {   
-                Acq_Once.Enabled = true;
-                liveOnOffBtn.Enabled = true;
-                SearchRegion.Enabled = true;
-                roi_Btn.Enabled = true;
-                connectCamera.Text = "카메라 연결 수정";
-                imageListView.Clear();
-                panel1.Enabled = false;
+            loadImage.Enabled = false;
+            roi_Btn.Enabled = false;
+            SearchRegion.Enabled = false;
+            connectCamera.Enabled = false;
+            liveOnOffBtn.Text = "연속 촬영 검사 시작";
+            Acq_Once.Text = "1회 촬영 검사";
+            toolRun.Enabled = false;
+            Check_Stop.Enabled = true;
 
-                imageFiles.Clear();
+            // 실제 패턴 매칭 검사 메소드 호출
+            Check_pattern(currentImage);
 
-                callCamera = false;
-            }
-
-        }
-
-        private void liveOnOffBtn_Click(object sender, EventArgs e)
+        } // 트레인 이미지 검사 버튼
+        private void Check_pattern(ICogImage image)
         {
-            try
+            if (!check || !IsHandleCreated) return;
+            if (InvokeRequired)
             {
-                if (aquisitionCamera == null || aquisitionCamera.PublicAcqFifo == null)
-                {
-                    MessageBox.Show("카메라가 연결되지 않았습니다.");
-                    return;
-                }
-
-                if (!check)
-                {
-                    if (showImage.LiveDisplayRunning)
-                    {
-                        showImage.StopLiveDisplay();
-                        liveOnOffBtn.Text = "라이브 시작";
-                    }
-                    else
-                    {
-                        showImage.StartLiveDisplay(aquisitionCamera.PublicAcqFifo);
-                        liveOnOffBtn.Text = "라이브 종료";
-                    }
-                }
-                else
-                {
-                    if (!isLiveInspectionRunning)
-                    {
-                        // 이벤트 중복 방지
-                        aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
-                        aquisitionCamera.PublicAcqFifo.Complete += AcqFifo_Complete;
-
-                        aquisitionCamera.PublicAcqFifo.StartAcquire();
-                        liveOnOffBtn.Text = "연속 촬영 검사 종료";
-                        isLiveInspectionRunning = true;
-                    }
-                    else
-                    {
-                        aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
-                        liveOnOffBtn.Text = "연속 촬영 검사 시작";
-                        isLiveInspectionRunning = false;
-                    }
-                }
+                BeginInvoke((Action<ICogImage>)Check_pattern, image);
+                return;
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show("라이브 실행 & 연속 촬영 검사 오류: " + ex.Message);
-            }
-        }
 
-        private void AcqFifo_Complete(object sender, CogCompleteEventArgs e)
+            // ----------------- 패턴 매칭 검사 실행 ----------------------
+            // 검사 대상 이미지를 PMAlignTool 에 설정
+            var result = _patternService.Match(image);
+
+            if (result == null || result.Score < 0.7) OkNg.Text = "NG";
+            else OkNg.Text = "OK";
+
+            // -------------------- 결과 시각화 --------------------------------
+            _patternService.ShowResult(resultDisplay);
+
+            // ------------------- 검사 결과 텍스트로 표시 ----------------------
+            // 점수, 위치, 회전 각도 추출
+            resultLabel.Text = _patternService.FormatResult(result);
+
+        } // PMAlign 검사 함수
+        private void CheckTrained()
         {
-            int ticket, triggerNum;
-
-            try
+            if (_patternService.IsTrained)
             {
-                currentImage = aquisitionCamera.PublicAcqFifo.CompleteAcquire(e.Ticket, out ticket, out triggerNum);
-
-                if (check && currentImage != null)
-                {
-                    Check_pattern();
-                }
-
-                if (isLiveInspectionRunning)
-                {
-                    aquisitionCamera.PublicAcqFifo.StartAcquire();
-                }
+                _patternService.ResetPattern();
+                check = false;
+                Console.WriteLine("기존의 패턴이 초기화되었습니다.");
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show("연속 촬영 검사 중 오류 발생: " + ex.Message);
-                isLiveInspectionRunning = false;
+                toolRun.Enabled = false;
+                Console.WriteLine("학습된 패턴이 없습니다.");
             }
-        }
-
-        private void AcqOnce_Click(object sender, EventArgs e)
-        {
-            int triggerNum;
-
-            if (aquisitionCamera == null || aquisitionCamera.PublicAcqFifo == null) 
-            {
-                MessageBox.Show("카메라가 연결되지 않았습니다.");
-            }
-
-            // 연속 검사 모드 종료 
-            if (isLiveInspectionRunning)
-            {
-                isLiveInspectionRunning = false;
-                aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
-
-                // 시간 딜레이 추가
-                System.Threading.Thread.Sleep(100); // 100ms 정도 여유
-                liveOnOffBtn.Text = "연속 촬영 검사 시작";
-            }
-
-            try
-            {
-                // 2. 단일 촬영
-                aquiredImage = aquisitionCamera.PublicAcqFifo.Acquire(out triggerNum) as CogImage8Grey;
-                currentImage = aquiredImage;
-
-                if (check)
-                {
-                    Check_pattern();
-                }
-                else
-                {
-                    showImage.Image = aquiredImage;
-                }
-
-                // 3. 라이브 디스플레이 중이면 중지
-                if (showImage.LiveDisplayRunning)
-                {
-                    showImage.StopLiveDisplay();
-                    liveOnOffBtn.Text = "라이브 시작";
-                }
-
-                // 4. 메모리 정리
-                acqCount++;
-                if (acqCount >= 5)
-                {
-                    GC.Collect();
-                    acqCount = 0;
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("1회 촬영 중 오류 발생: " + ex.Message);
-            }
-        }
-
+        } // Train 확인 여부 호출 함수
         private void Check_Stop_Click(object sender, EventArgs e)
         {
+            check = false;
+            _camera.StopLoop();
+            _camera.ImageReceived -= Check_pattern;
+
+            resultDisplay.Image = null;
+            liveOnOffBtn.Text = "라이브 시작";
+            Acq_Once.Text = "1회 촬영";
+            OkNg.Text = "";
+            resultLabel.Text = "";
             loadImage.Enabled = true;
             roi_Btn.Enabled = true;
             SearchRegion.Enabled = true;
             connectCamera.Enabled = true;
-            liveOnOffBtn.Text = "라이브 시작";
-            Acq_Once.Text = "1회 촬영";
             toolRun.Enabled = true;
             Check_Stop.Enabled = false;
-            check = false;
-
-            aquisitionCamera.PublicAcqFifo.Complete -= AcqFifo_Complete;
         }
+
     }
 }
 

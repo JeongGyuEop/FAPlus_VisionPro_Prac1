@@ -33,7 +33,6 @@
             this.showImage = new Cognex.VisionPro.Display.CogDisplay();
             this.trainDisplay = new Cognex.VisionPro.Display.CogDisplay();
             this.roi_Btn = new System.Windows.Forms.Button();
-            this.Train = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.loadImage = new System.Windows.Forms.Button();
@@ -56,6 +55,9 @@
             this.resultDisplay = new Cognex.VisionPro.CogRecordDisplay();
             this.panel1 = new System.Windows.Forms.Panel();
             this.Check_Stop = new System.Windows.Forms.Button();
+            this.OkNg = new System.Windows.Forms.Label();
+            this.PatternVppLoad = new System.Windows.Forms.Button();
+            this.PatternVppSave = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.showImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trainDisplay)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.playTimer)).BeginInit();
@@ -107,18 +109,6 @@
             this.roi_Btn.Text = "ROI 설정";
             this.roi_Btn.UseVisualStyleBackColor = true;
             this.roi_Btn.Click += new System.EventHandler(this.RoiBtn_Click);
-            // 
-            // Train
-            // 
-            this.Train.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.Train.Location = new System.Drawing.Point(392, 374);
-            this.Train.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.Train.Name = "Train";
-            this.Train.Size = new System.Drawing.Size(278, 39);
-            this.Train.TabIndex = 3;
-            this.Train.Text = "트레인";
-            this.Train.UseVisualStyleBackColor = true;
-            this.Train.Click += new System.EventHandler(this.Train_Click);
             // 
             // label1
             // 
@@ -180,7 +170,7 @@
             // toolRun
             // 
             this.toolRun.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.toolRun.Location = new System.Drawing.Point(392, 419);
+            this.toolRun.Location = new System.Drawing.Point(392, 468);
             this.toolRun.Name = "toolRun";
             this.toolRun.Size = new System.Drawing.Size(278, 39);
             this.toolRun.TabIndex = 12;
@@ -191,17 +181,17 @@
             // resultLabel
             // 
             this.resultLabel.AutoSize = true;
-            this.resultLabel.Location = new System.Drawing.Point(695, 401);
+            this.resultLabel.Location = new System.Drawing.Point(694, 401);
             this.resultLabel.Name = "resultLabel";
-            this.resultLabel.Size = new System.Drawing.Size(5, 12);
+            this.resultLabel.Size = new System.Drawing.Size(45, 24);
             this.resultLabel.TabIndex = 13;
-            this.resultLabel.Text = "\r\n";
+            this.resultLabel.Text = "\r\n          ";
             // 
             // label3
             // 
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("맑은 고딕", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(129)));
-            this.label3.Location = new System.Drawing.Point(694, 374);
+            this.label3.Location = new System.Drawing.Point(693, 374);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(65, 17);
             this.label3.TabIndex = 14;
@@ -374,19 +364,55 @@
             // Check_Stop
             // 
             this.Check_Stop.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
-            this.Check_Stop.Location = new System.Drawing.Point(392, 468);
+            this.Check_Stop.Location = new System.Drawing.Point(696, 468);
             this.Check_Stop.Name = "Check_Stop";
-            this.Check_Stop.Size = new System.Drawing.Size(278, 39);
+            this.Check_Stop.Size = new System.Drawing.Size(365, 39);
             this.Check_Stop.TabIndex = 34;
             this.Check_Stop.Text = "검사 중지";
             this.Check_Stop.UseVisualStyleBackColor = true;
             this.Check_Stop.Click += new System.EventHandler(this.Check_Stop_Click);
+            // 
+            // OkNg
+            // 
+            this.OkNg.AutoSize = true;
+            this.OkNg.Location = new System.Drawing.Point(694, 425);
+            this.OkNg.Name = "OkNg";
+            this.OkNg.Size = new System.Drawing.Size(45, 12);
+            this.OkNg.TabIndex = 35;
+            this.OkNg.Text = "          ";
+            // 
+            // PatternVppLoad
+            // 
+            this.PatternVppLoad.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.PatternVppLoad.Location = new System.Drawing.Point(392, 374);
+            this.PatternVppLoad.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.PatternVppLoad.Name = "PatternVppLoad";
+            this.PatternVppLoad.Size = new System.Drawing.Size(278, 39);
+            this.PatternVppLoad.TabIndex = 36;
+            this.PatternVppLoad.Text = "패턴 로드";
+            this.PatternVppLoad.UseVisualStyleBackColor = true;
+            this.PatternVppLoad.Click += new System.EventHandler(this.PatternVppLoad_Click);
+            // 
+            // PatternVppSave
+            // 
+            this.PatternVppSave.Font = new System.Drawing.Font("맑은 고딕", 10F, System.Drawing.FontStyle.Bold);
+            this.PatternVppSave.Location = new System.Drawing.Point(392, 420);
+            this.PatternVppSave.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.PatternVppSave.Name = "PatternVppSave";
+            this.PatternVppSave.Size = new System.Drawing.Size(278, 39);
+            this.PatternVppSave.TabIndex = 37;
+            this.PatternVppSave.Text = "패턴 저장(트레인)";
+            this.PatternVppSave.UseVisualStyleBackColor = true;
+            this.PatternVppSave.Click += new System.EventHandler(this.PatternVppSave_Click);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1086, 738);
+            this.Controls.Add(this.PatternVppSave);
+            this.Controls.Add(this.PatternVppLoad);
+            this.Controls.Add(this.OkNg);
             this.Controls.Add(this.Check_Stop);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.resultDisplay);
@@ -401,7 +427,6 @@
             this.Controls.Add(this.loadImage);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.Train);
             this.Controls.Add(this.roi_Btn);
             this.Controls.Add(this.trainDisplay);
             this.Controls.Add(this.showImage);
@@ -424,7 +449,6 @@
         private Cognex.VisionPro.Display.CogDisplay showImage;
         private Cognex.VisionPro.Display.CogDisplay trainDisplay;
         private System.Windows.Forms.Button roi_Btn;
-        private System.Windows.Forms.Button Train;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button loadImage;
@@ -447,6 +471,9 @@
         private Cognex.VisionPro.CogRecordDisplay resultDisplay;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.Button Check_Stop;
+        private System.Windows.Forms.Label OkNg;
+        private System.Windows.Forms.Button PatternVppLoad;
+        private System.Windows.Forms.Button PatternVppSave;
     }
 }
 

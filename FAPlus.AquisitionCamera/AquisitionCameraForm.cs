@@ -58,7 +58,7 @@ namespace FAPlus.AquisitionCamera
                         VideoFormatCombo.Items.Add(format);
 
                     // 노출/밝기/대비 NumericUpDown 활성/비활성화 함수 호출
-                    SetControlEnabled(false);
+                    SetControlEnabled(false);  
 
                 } 
                 else // 카메라 연결 Form이 2번 이상 열린 경우
@@ -250,7 +250,6 @@ namespace FAPlus.AquisitionCamera
                 mContrast.Contrast = 0.2;
             }
         } // 대비 값이 변경될 때 호출되는 이벤트 핸들러 
-
 
 
         public ICogAcqFifo PublicAcqFifo => mAcqFifo;            // FIFO 접근용
