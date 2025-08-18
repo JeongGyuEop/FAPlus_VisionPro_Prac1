@@ -8,10 +8,11 @@ namespace FAPlus.AquisitionCamera
     {
         private readonly CameraService _camera;
 
-        public AquisitionCameraForm(CameraService camera, bool firstOpenCamera)
+        public AquisitionCameraForm(CameraService camera)
         {
             InitializeComponent(); // WinForm UI 구성
             _camera = camera;
+            _camera.LoadVpp(@"vpp\camera.vpp");
             if (!_camera.IsConnected) _camera.Connect();
 
             BoardTypeLabel.Text = _camera.FrameGrabberName ?? "(프레임그래버 없음)";
@@ -20,7 +21,6 @@ namespace FAPlus.AquisitionCamera
             VideoFormatCombo.Items.Clear();
             VideoFormatCombo.Items.AddRange(_camera.VideoFormats);
 
-            _camera.LoadVpp(@"vpp\camera.vpp");
 
             if (_camera.IsConfigured)
             {

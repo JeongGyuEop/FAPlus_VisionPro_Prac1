@@ -253,7 +253,7 @@ namespace FAPlus.MainForm
 
             // 설정 폼을 서비스와 함께 띄움
             var configured = false;
-            using (var dlg = new AquisitionCameraForm(_camera, firstOpenCamera))
+            using (var dlg = new AquisitionCameraForm(_camera))
             {
                 var result = dlg.ShowDialog(this);
                 configured = (result == DialogResult.OK) && _camera.IsConfigured;
@@ -422,6 +422,7 @@ namespace FAPlus.MainForm
 
             // ROI 영역 설정
             var (roiRegion, coordinateAxes) = _regionManager.CreateRoi(150, 150, 300, 300);
+            ClearGraphic_Display(showImage, currentImage);
             showImage.InteractiveGraphics.Add(roiRegion, "ROI", true); // ROI 영역을 화면에 추가 
             showImage.StaticGraphics.Add(coordinateAxes, "centerPoint"); // 중심 좌표축을 화면에 추가
 

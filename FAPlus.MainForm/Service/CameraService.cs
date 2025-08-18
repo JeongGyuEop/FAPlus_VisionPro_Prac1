@@ -65,7 +65,11 @@ namespace FAPlus.MainForm.Service
         // =========== 카메라 연결
         public void Connect()
         {
-            if (cogAcqFifoTool == null) throw new InvalidOperationException("먼저 vpp를 로드하세요.");
+            //if (cogAcqFifoTool == null) throw new InvalidOperationException("먼저 vpp를 로드하세요.");
+            if (cogAcqFifoTool == null)
+            {
+                cogAcqFifoTool = new CogAcqFifoTool();
+            }
             if (Fifo?.FrameGrabber != null) return; // 이미 연결
 
             var fgs = new CogFrameGrabbers();
